@@ -30,7 +30,7 @@ Once per repo, run `/devflow:setup`. It checks the install and runs the setup st
 | Flow | For | Steps |
 |---|---|---|
 | Feature | New behavior with a design decision | `how`, `grill-with-docs` (and `prototype`), `to-spec` and `to-tickets` if it needs more than one session, `architect`, `implement` (drives `tdd` and `code-review`), `blast-radius`, `interrogate` on risky changes, prove it with your `verify-*` skill, `pr` |
-| Bug | Something broken or slow | `why` for regressions, `diagnosing-bugs` (regression test, fix, cleanup), `blast-radius`, prove it. A failing Vitest test goes to [fixflow](https://github.com/itsrob00/testflow) if you have it. |
+| Bug | Something broken or slow | `why` for regressions, `diagnosing-bugs` (regression test, fix, cleanup), `blast-radius`, prove it. |
 | Big | More than one session | `wayfinder` when the path is unclear, `figure-it-out` when it's clear but long, `show-me-your-work` throughout, `handoff` at the end of each session |
 | Small | One or two files, clear change | `poteto-mode`, or a direct edit (see Settings) |
 
