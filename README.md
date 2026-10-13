@@ -1,8 +1,8 @@
 # devflow
 
-A Claude Code plugin that runs my development workflow: Matt Pocock's skills to decide what to build, and pstack to build it and prove it works.
+devflow is a Claude Code plugin. Give `/devflow:start` a task, and it sorts the task into a feature, a bug, a multi-session job, or a small change. It then runs that flow's steps in order, each one a skill from Matt Pocock's skills or pstack, and asks you whenever a step needs your decision.
 
-Tell it the task. It picks one of four flows, runs each step's skill in order, and stops where you need to decide something.
+Matt Pocock's skills handle the planning and building: interviews, specs, tickets, and test-first code. pstack handles the checks: what else a change can break, review by several models, and driving the running app to confirm the change works.
 
 ## Install
 
