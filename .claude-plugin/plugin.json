@@ -1,0 +1,61 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "devflow",
+  "version": "1.0.0",
+  "description": "Rob's Claude Code workflow on top of Matt Pocock's skills and pstack: picks the right flow for a task (feature, bug, big job, small change), runs each step's skill, and proves the result. Includes a git safety hook.",
+  "author": {
+    "name": "Rob"
+  },
+  "license": "MIT",
+  "dependencies": [
+    "devflow-matt",
+    "devflow-pstack"
+  ],
+  "keywords": [
+    "workflow",
+    "skills",
+    "pstack",
+    "mattpocock-skills",
+    "tdd",
+    "code-review"
+  ],
+  "userConfig": {
+    "git_guard": {
+      "type": "boolean",
+      "title": "Git safety hook",
+      "description": "Block git push, reset --hard, clean -f, branch -D, and checkout or restore of the whole tree. You run those yourself.",
+      "default": true
+    },
+    "adversarial_review": {
+      "type": "string",
+      "title": "Multi-model review",
+      "description": "When the feature flow adds /interrogate after code review. risky changes: auth, data, money, concurrency, migrations, public APIs. always: every feature. never: skip it.",
+      "options": [
+        "risky changes",
+        "always",
+        "never"
+      ],
+      "default": "risky changes"
+    },
+    "small_changes": {
+      "type": "string",
+      "title": "Small changes",
+      "description": "How the small-change flow works. poteto-mode: run pstack's /poteto-mode. direct: make the change, run the related tests, and show the diff.",
+      "options": [
+        "poteto-mode",
+        "direct"
+      ],
+      "default": "poteto-mode"
+    },
+    "after_session": {
+      "type": "string",
+      "title": "Session review",
+      "description": "Which review /devflow:wrap runs. retro: Matt's /retro, one pass that suggests changes to checks, standards, and docs. reflect: pstack's /reflect, three parallel reviewers that edit your skills.",
+      "options": [
+        "retro",
+        "reflect"
+      ],
+      "default": "retro"
+    }
+  }
+}

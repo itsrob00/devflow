@@ -1,0 +1,111 @@
+{
+  "name": "devflow",
+  "owner": {
+    "name": "Rob"
+  },
+  "metadata": {
+    "description": "devflow, plus the parts of Matt Pocock's skills and pstack it runs, installed straight from their repos."
+  },
+  "plugins": [
+    {
+      "name": "devflow",
+      "source": "./",
+      "description": "Picks the right flow for a task (feature, bug, big job, small change), runs each step's skill, and proves the result."
+    },
+    {
+      "name": "devflow-matt",
+      "source": {
+        "source": "git-subdir",
+        "url": "mattpocock/skills",
+        "path": "skills"
+      },
+      "strict": false,
+      "description": "The 18 of Matt Pocock's skills that devflow runs, from mattpocock/skills (MIT).",
+      "author": {
+        "name": "Matt Pocock"
+      },
+      "license": "MIT",
+      "homepage": "https://github.com/mattpocock/skills",
+      "skills": [
+        "./engineering/setup-matt-pocock-skills",
+        "./engineering/grill-with-docs",
+        "./engineering/domain-modeling",
+        "./engineering/prototype",
+        "./engineering/to-spec",
+        "./engineering/to-tickets",
+        "./engineering/implement",
+        "./engineering/tdd",
+        "./engineering/codebase-design",
+        "./engineering/code-review",
+        "./engineering/pr",
+        "./engineering/diagnosing-bugs",
+        "./engineering/wayfinder",
+        "./engineering/research",
+        "./engineering/retro",
+        "./productivity/grilling",
+        "./productivity/handoff",
+        "./productivity/writing-for-agents"
+      ]
+    },
+    {
+      "name": "devflow-pstack",
+      "source": {
+        "source": "git-subdir",
+        "url": "backnotprop/pstack",
+        "path": "skills"
+      },
+      "strict": false,
+      "description": "The pstack skills devflow runs, from backnotprop/pstack (MIT): everything except tdd, teach, and the extras devflow doesn't use.",
+      "author": {
+        "name": "Lauren Tan"
+      },
+      "license": "MIT",
+      "homepage": "https://github.com/backnotprop/pstack",
+      "skills": [
+        "./how",
+        "./why",
+        "./architect",
+        "./arena",
+        "./blast-radius",
+        "./unslop",
+        "./interrogate",
+        "./figure-it-out",
+        "./show-me-your-work",
+        "./reflect",
+        "./correct",
+        "./create-verification-skill",
+        "./maintain-verification-skill",
+        "./setup-pstack",
+        "./poteto-mode",
+        "./swarm",
+        "./no-comments",
+        "./benchmark-checklist",
+        "./technical-writing",
+        "./principle-attack-the-premise",
+        "./principle-boundary-discipline",
+        "./principle-build-the-lever",
+        "./principle-encode-lessons-in-structure",
+        "./principle-exhaust-the-design-space",
+        "./principle-experience-first",
+        "./principle-explain-the-number",
+        "./principle-fix-root-causes",
+        "./principle-foundational-thinking",
+        "./principle-guard-the-context-window",
+        "./principle-laziness-protocol",
+        "./principle-make-operations-idempotent",
+        "./principle-migrate-callers-then-delete-legacy-apis",
+        "./principle-minimize-reader-load",
+        "./principle-model-the-domain",
+        "./principle-never-block-on-the-human",
+        "./principle-outcome-oriented-execution",
+        "./principle-prove-it-works",
+        "./principle-redesign-from-first-principles",
+        "./principle-separate-before-serializing-shared-state",
+        "./principle-sequence-verifiable-units",
+        "./principle-subtract-before-you-add",
+        "./principle-test-behavior-not-implementation",
+        "./principle-type-system-discipline"
+      ]
+    }
+  ]
+}
