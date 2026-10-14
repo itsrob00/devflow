@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // PreToolUse hook: blocks git commands that lose work or leave the machine, so you run them yourself.
-// Blocked: push, reset --hard, clean -f, branch -D, and checkout or restore of the whole tree.
-// Flags are checked wherever they appear, and compound commands, `bash -c`, and `$(...)` piece by piece.
+// Blocked: push, reset --hard, clean -f, branch -D, and discarding the whole working tree
+// (checkout or restore of `.`, checkout -f, switch --discard-changes).
+// Flags are checked wherever they appear, and compound commands, `bash -c`, `$(...)` and here-docs fed to a shell piece by piece.
 // Turn it off with the git_guard plugin option, or DEVFLOW_GUARD=off in the environment.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -30,16 +31,45 @@ export function parse (cmd) {
   let word = null
   let redirect = null
   const redirects = []
+  let heredocs = []
+  let pending = []
   const push = () => {
     if (word === null) return
     if (redirect === true) redirects.push(word)
+    else if (redirect && redirect.heredoc) pending.push({ delim: word, strip: redirect.strip, to: heredocs })
     else if (!redirect) words.push(word)
     redirect = null
     word = null
   }
-  const end = () => { push(); if (words.length || redirects.length) segments.push({ words, redirects: [...redirects] }); words = []; redirects.length = 0 }
+  const end = () => {
+    push()
+    if (words.length || redirects.length) segments.push({ words, redirects: [...redirects], heredocs })
+    words = []
+    redirects.length = 0
+    heredocs = []
+  }
   for (let i = 0; i < cmd.length; i++) {
     const c = cmd[i]
+    // a here-doc body starts on the next line; keep it as data, not commands
+    if (c === '\n') push()
+    if (c === '\n' && pending.length) {
+      end()
+      let at = i + 1
+      for (const h of pending) {
+        const body = []
+        while (at < cmd.length) {
+          const nl = cmd.indexOf('\n', at)
+          const line = cmd.slice(at, nl < 0 ? cmd.length : nl)
+          at = nl < 0 ? cmd.length : nl + 1
+          if ((h.strip ? line.replace(/^\t+/, '') : line) === h.delim) break
+          body.push(line)
+        }
+        h.to.push(body.join('\n'))
+      }
+      pending = []
+      i = at - 1
+      continue
+    }
     if (c === '\\' && i + 1 < cmd.length) { word = (word ?? '') + cmd[++i]; continue }
     if (c === "'") {
       const j = cmd.indexOf("'", i + 1)
@@ -75,9 +105,15 @@ export function parse (cmd) {
         if (cmd[i + 1] === '&') { i++; while (/[\d-]/.test(cmd[i + 1] || '')) i++; continue }
         redirect = true
       } else {
-        // input redirects and here-docs are reads; drop their operand
-        if (cmd[i + 1] === '<') i++
-        if (cmd[i + 1] === '<') i++
+        // input redirects and here-strings are reads; drop their operand. A here-doc keeps its delimiter.
+        if (cmd[i + 1] === '<' && cmd[i + 2] !== '<') {
+          i++
+          const strip = cmd[i + 1] === '-'
+          if (strip) i++
+          redirect = { heredoc: true, strip }
+          continue
+        }
+        if (cmd[i + 1] === '<') i += 2
         redirect = 'in'
       }
       continue
@@ -86,8 +122,7 @@ export function parse (cmd) {
     word = (word ?? '') + c
   }
   end()
-  // input redirects are reads, not writes
-  return { segments: segments.map(s => ({ words: s.words, writes: s.redirects })), nested }
+  return { segments: segments.map(s => ({ words: s.words, heredocs: s.heredocs })), nested }
 }
 
 function matchParen (s, open) {
@@ -132,6 +167,7 @@ function checkGit (args) {
     if (has(opts, '--force', 'f')) return 'git checkout --force is blocked'
     if (paths.some(p => WHOLE_TREE.has(p))) return 'git checkout of the whole tree is blocked'
   }
+  if (sub === 'switch' && (has(opts, '--force', 'f') || has(opts, '--discard-changes'))) return 'git switch --discard-changes is blocked'
   if (sub === 'restore') {
     const onlyStaged = has(opts, '--staged', 'S') && !has(opts, '--worktree', 'W')
     if (!onlyStaged && paths.some(p => WHOLE_TREE.has(p))) return 'git restore of the whole tree is blocked'
@@ -139,7 +175,7 @@ function checkGit (args) {
   return null
 }
 
-function checkSegment (words, depth) {
+function checkSegment ({ words, heredocs }, depth) {
   // drop leading env assignments and wrappers
   const w = words.slice()
   while (w.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(w[0])) w.shift()
@@ -153,6 +189,8 @@ function checkSegment (words, depth) {
   if (['bash', 'sh', 'zsh', 'dash'].includes(cmd)) {
     const k = args.findIndex(a => a === '-c' || /^-[a-z]*c$/.test(a))
     if (k >= 0 && args[k + 1] !== undefined) return check(args[k + 1], depth + 1)
+    // `bash <<EOF` runs its here-doc
+    for (const h of heredocs) { const r = check(h, depth + 1); if (r) return r }
   }
   if (cmd === 'eval') return check(args.join(' '), depth + 1)
   if (cmd === 'git') return checkGit(args)
@@ -163,7 +201,7 @@ export function check (command, depth = 0) {
   if (depth > 5) return 'command nests too deeply to check'
   const { segments, nested } = parse(command)
   for (const s of segments) {
-    const r = checkSegment(s.words, depth)
+    const r = checkSegment(s, depth)
     if (r) return r
   }
   for (const n of nested) {
