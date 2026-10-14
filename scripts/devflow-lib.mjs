@@ -80,6 +80,7 @@ export const SKILLS = {
   pr: MATT,
   'diagnosing-bugs': MATT,
   wayfinder: MATT,
+  research: MATT,
   handoff: MATT,
   retro: MATT,
   'writing-for-agents': MATT,
@@ -105,7 +106,7 @@ export const FLOWS = {
   feature: ['how', 'grill-with-docs', 'grilling', 'domain-modeling', 'prototype', 'to-spec', 'to-tickets', 'architect', 'arena',
     'implement', 'tdd', 'codebase-design', 'code-review', 'blast-radius', 'why', 'unslop', 'interrogate', 'pr'],
   bug: ['why', 'how', 'diagnosing-bugs', 'blast-radius', 'arena', 'unslop'],
-  big: ['wayfinder', 'figure-it-out', 'show-me-your-work', 'handoff', 'to-spec', 'to-tickets'],
+  big: ['wayfinder', 'research', 'figure-it-out', 'show-me-your-work', 'handoff', 'to-spec', 'to-tickets'],
   small: ['poteto-mode'],
   wrap: ['retro', 'writing-for-agents', 'reflect', 'correct', 'handoff']
 }

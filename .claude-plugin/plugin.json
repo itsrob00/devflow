@@ -23,7 +23,7 @@
     "git_guard": {
       "type": "boolean",
       "title": "Git safety hook",
-      "description": "Block git push, reset --hard, clean -f, branch -D, and checkout or restore of the whole tree. You run those yourself.",
+      "description": "Block git push, reset --hard, clean -f, branch -D, and commands that discard the whole working tree. You run those yourself.",
       "default": true
     },
     "adversarial_review": {

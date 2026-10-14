@@ -26,15 +26,15 @@ Read the task, then the code it touches if you need to. Pick one:
 | **Feature** | New or changed behavior that needs a design decision or touches more than a couple of files. |
 | **Bug** | Something is broken, throws, fails, or got slower. |
 | **Big** | More than one session can hold: a migration, a greenfield project, a foggy multi-part effort. |
-| **Small** | Clear what to do, one or two files, no design question. |
+| **Small** | Clear what to do, one or two files, nothing for the user to decide. New behavior is a Feature, however small. |
 
-Say the flow and the reason in one line, then continue. Only ask when two flows fit equally well. If a Small change grows past two files or hits a design question, switch to Feature and say so.
+Say the flow and the reason in one line, then continue. Only ask when two flows fit equally well. If a Small change grows past two files or makes you choose behavior the task didn't specify, switch to Feature and say so.
 
 Run `devflow doctor <flow>` (use `feature`, `bug`, `big` or `small`). If a skill the flow needs is missing, list them with the install line it prints and stop. Any other NOT READY line: mention it once and continue.
 
 Run `devflow settings`. The settings are `/plugin` options; the user's words in this conversation win over them for this run.
 
-Keep a todo list whose first items are the chosen flow's steps, each with its skill name. Mark a step done only when its skill's completion criteria are met. A step you skip stays on it with `skip: <reason>`.
+Keep a todo list whose first items are the chosen flow's steps, each with its skill name. Mark a step done only after you ran `devflow show` for its skill and met that skill's completion criteria. A step you skip stays on it with `skip: <reason>`.
 
 ## Feature
 
@@ -73,8 +73,8 @@ Keep a todo list whose first items are the chosen flow's steps, each with its sk
 
 ## Git
 
-With the git guard on, `git push`, `reset --hard`, `clean -f`, `branch -D`, and checkout or restore of the whole tree are blocked. When a step needs one, give the user the exact command and continue with what doesn't depend on it. Never look for another way to do the same thing.
+With the git guard on, `git push`, `reset --hard`, `clean -f`, `branch -D`, and commands that discard the whole working tree are blocked. Run a blocked command on its own, never chained after a commit, so the rest still runs. When a step needs one, give the user the exact command and continue with what doesn't depend on it. Never look for another way to do the same thing.
 
 ## Finish
 
-End with a short report: the flow, the skills that ran (and any step skipped, with why), what changed, the evidence it works (test runs, the `verify-*` run, `blast-radius`'s safety fact), and what's left for the user. Then suggest `/devflow:wrap` if the session hit a snag worth learning from.
+End with a short report: the flow, the skills that ran (only those you loaded with `devflow show`; any other step is skipped, with why), what changed, the evidence it works (test runs, the `verify-*` run, `blast-radius`'s safety fact), and what's left for the user. Then suggest `/devflow:wrap` if the session hit a snag worth learning from.

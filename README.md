@@ -3,7 +3,7 @@
 **A Claude Code plugin that turns Matt Pocock's skills and pstack into one guided workflow: describe a task, and devflow plans, builds, checks and proves it, step by step.**
 
 ```
-/devflow:start //your prompt
+/devflow:start <what you want done>
 ```
 
 devflow sorts the task into a feature, a bug, a multi-session job or a small change, then runs that flow's skills in order and stops to ask you whenever a step needs your decision. It's my customised setup on top of [Matt Pocock's skills](https://github.com/mattpocock/skills) and [Lauren Tan's pstack](https://github.com/backnotprop/pstack).
@@ -54,7 +54,7 @@ Skills devflow doesn't use stay out, including pstack's `tdd` and `teach`, which
 - `wayfinder` when the path is unclear, `figure-it-out` when it's clear but long
 - `show-me-your-work` throughout, `handoff` at the end of each session
 
-**Small**: one or two files, clear change.
+**Small**: one or two files, clear change, no new behaviour.
 - `poteto-mode`, or a direct edit (see Settings)
 
 ### Picking up later
@@ -69,10 +69,14 @@ Set these in `/plugin`, under devflow, Configure options. Saying otherwise in yo
 
 | Setting | Default | What it does |
 |---|---|---|
-| Git safety hook | on | Blocks `git push`, `reset --hard`, `clean -f`, `branch -D`, and checkout or restore of the whole tree. Claude gives you the command to run instead. |
+| Git safety hook | on | Blocks `git push`, `reset --hard`, `clean -f`, `branch -D`, and commands that discard the whole working tree (`checkout .`, `restore .`, `checkout -f`, `switch --discard-changes`). Claude gives you the command to run instead. |
 | Multi-model review | risky changes | When the feature flow adds `/interrogate`: on risky changes (auth, data, money, concurrency, migrations, public APIs), always, or never. |
 | Small changes | poteto-mode | `poteto-mode` or `direct`. |
 | Session review | retro | Which review `/devflow:wrap` runs: `retro` or `reflect`. |
+
+## Contributing
+
+`node --test` runs the git guard's tests. Add a case there for any command it should block or let through.
 
 ## Credits
 
