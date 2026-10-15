@@ -3,10 +3,11 @@
 //   devflow settings          the plugin options in use
 //   devflow find <skill>...   the SKILL.md devflow runs for each skill, or MISSING
 //   devflow show <skill>      print that SKILL.md, with its folder for resolving relative links
-//   devflow doctor [flow]     what is installed and set up, for one flow or all of them
+//   devflow doctor [flow]     what is installed and set up, for one flow or all of them; runs git init if the folder isn't a repo
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { FLOWS, PACKS, SKILLS, findSkill, installedSkills, loadSettings } from './devflow-lib.mjs'
 
 const root = process.cwd()
@@ -60,6 +61,20 @@ function verifySkills () {
   return out
 }
 
+// The flows commit and diff against a branch point, so a folder that isn't a repo yet gets one.
+function ensureGit () {
+  const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  try {
+    git(['rev-parse', '--is-inside-work-tree'])
+  } catch (e) {
+    if (e.code === 'ENOENT') return { ok: false, line: 'git: not installed. Install git; the flows commit and diff against a branch point.' }
+    try { git(['init']) } catch { return { ok: false, line: `git: ${root} isn't a repository and git init failed there.` } }
+    return { ok: true, line: `git: ran git init in ${root}. There are no commits yet, so the first commit is the branch point.` }
+  }
+  try { git(['rev-parse', '--verify', 'HEAD']) } catch { return { ok: true, line: 'git: no commits yet, so the first commit is the branch point.' } }
+  return { ok: true, line: 'git: ok' }
+}
+
 function doctor (only) {
   if (only && !FLOWS[only]) { console.error(`unknown flow ${only}; use one of ${Object.keys(FLOWS).join(', ')}`); process.exit(2) }
   const s = loadSettings()
@@ -108,6 +123,9 @@ function doctor (only) {
     console.log(`verification skill: ${v.length ? v.join(', ') : 'none. Run /create-verification-skill so flows can prove changes in the running app'}`)
     if (!v.length && (!only || only === 'setup')) ready = false
   }
+  const g = ensureGit()
+  console.log(g.line)
+  if (!g.ok) ready = false
   console.log(`git guard: ${s.git_guard ? 'on' : 'off'}`)
   console.log(ready ? 'READY' : 'NOT READY')
 }

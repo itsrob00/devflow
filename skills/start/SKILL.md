@@ -30,7 +30,7 @@ Read the task, then the code it touches if you need to. Pick one:
 
 Say the flow and the reason in one line, then continue. Only ask when two flows fit equally well. If a Small change grows past two files or makes you choose behavior the task didn't specify, switch to Feature and say so.
 
-Run `devflow doctor <flow>` (use `feature`, `bug`, `big` or `small`). If a skill the flow needs is missing, list them with the install line it prints and stop. Any other NOT READY line: mention it once and continue.
+Run `devflow doctor <flow>` (use `feature`, `bug`, `big` or `small`). If a skill the flow needs is missing, list them with the install line it prints and stop. Any other NOT READY line: mention it once and continue. A folder that isn't a git repository is not a reason to stop: doctor runs `git init` there and says so, and you pass that line on.
 
 Run `devflow settings`. The settings are `/plugin` options; the user's words in this conversation win over them for this run.
 
