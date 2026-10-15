@@ -63,7 +63,7 @@ Keep a todo list whose first items are the chosen flow's steps, each with its sk
 1. **Plan.**
    - The way there isn't clear yet (open decisions, unknown scope): `wayfinder`. It maps the work as decision tickets and resolves them one at a time. When the map clears, continue with Feature step 3 (`to-spec`, then `to-tickets`).
    - The way is clear but long (a migration, a sweep across many call sites, a multi-part change): `figure-it-out`. It designs the playbook and runs it.
-2. **Log decisions.** `show-me-your-work` from the start, so a reviewer can trust the result later.
+2. **Log decisions.** `show-me-your-work` from the start, so a reviewer can trust the result later. Its trail review asks for a different model family, which Claude Code doesn't have: every model it runs is Claude. Spawn that reviewer on the `judgment and prose` model from the pstack models file (omit `model` for `inherit-parent` or `auto`), never on a model the user didn't configure. In the Attention section write `reviewed by <model> (fresh context; Claude Code has no other model family)`, and report a fallback only if a spawn actually failed, with its error.
 3. **End of each session.** `handoff` with what the next session is for. Tell the user the file path and to start the next session with `/devflow:start resume <path>`. A task that starts with `resume` reads that file first and continues where it says.
 
 ## Small
