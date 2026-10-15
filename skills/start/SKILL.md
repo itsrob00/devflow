@@ -17,6 +17,15 @@ Run `devflow show <skill>`. It prints the SKILL.md devflow uses. Read all of it 
 
 A step that looks obvious still runs its skill: an easy bug still gets `diagnosing-bugs`' red loop and `blast-radius`'s proven safety fact. Follow each skill's own checkpoints. Where it asks the user something, ask; don't answer for them. If the user said they're away, take the skill's recommended option and say which one you took.
 
+## Picking up earlier work
+
+A task that starts with `resume <path>` or `ticket <ref>` continues work an earlier session set up, so skip step 1. Don't pick a flow again, don't rerun `devflow doctor` or `devflow settings`, and don't explore the code to get oriented; the handoff or ticket says where things stand.
+
+- `resume <path>`: read that file. It names the flow, the step and ticket to continue from, and any settings the user changed. Start the todo list at that step.
+- `ticket <ref>`: Feature flow from step 4.
+
+Don't rerun a step an earlier session finished. In Big, that means no new `wayfinder` map and no new `figure-it-out` framing or playbook: pick up the map or playbook where the handoff says. Run `devflow show` for a skill when you reach its step, not before. If it reports the skill missing, run `devflow doctor <flow>` then.
+
 ## 1. Pick the flow
 
 Read the task, then the code it touches if you need to. Pick one:
@@ -64,7 +73,7 @@ Keep a todo list whose first items are the chosen flow's steps, each with its sk
    - The way there isn't clear yet (open decisions, unknown scope): `wayfinder`. It maps the work as decision tickets and resolves them one at a time. When the map clears, continue with Feature step 3 (`to-spec`, then `to-tickets`).
    - The way is clear but long (a migration, a sweep across many call sites, a multi-part change): `figure-it-out`. It designs the playbook and runs it.
 2. **Log decisions.** `show-me-your-work` from the start, so a reviewer can trust the result later. Its trail review asks for a different model family, which Claude Code doesn't have: every model it runs is Claude. Spawn that reviewer on the `judgment and prose` model from the pstack models file (omit `model` for `inherit-parent` or `auto`), never on a model the user didn't configure. In the Attention section write `reviewed by <model> (fresh context; Claude Code has no other model family)`, and report a fallback only if a spawn actually failed, with its error.
-3. **End of each session.** `handoff` with what the next session is for. Tell the user the file path and to start the next session with `/devflow:start resume <path>`. A task that starts with `resume` reads that file first and continues where it says.
+3. **End of each session.** `handoff` with what the next session is for. Start the file with the flow (Big), the step and ticket to continue from, the `wayfinder` map or `figure-it-out` playbook and decision log paths, and any settings the user changed, so the next session needs nothing else to start. Tell the user the file path and to start the next session with `/devflow:start resume <path>`. **Picking up earlier work** above says how that session starts.
 
 ## Small
 
