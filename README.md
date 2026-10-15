@@ -18,7 +18,7 @@ Requires Claude Code, Node 18 or later, and git.
 /devflow:setup
 ```
 
-`/devflow:setup` runs once per repo. It checks the install and walks you through what's missing: your issue tracker (`/setup-matt-pocock-skills`), pstack's models (`/setup-pstack`; its defaults use Grok, which Claude Code can't run) and a verification skill that drives your app (`/create-verification-skill`).
+`/devflow:setup` runs once per repo. It sets up your issue tracker (`/setup-matt-pocock-skills`), pstack's models (`/setup-pstack`; its defaults use Grok, which Claude Code can't run) and a verification skill that drives your app (`/create-verification-skill`), and runs `git init` if the folder isn't a repo. It asks all its questions at once, shows every draft for one review, then does the rest without stopping.
 
 Installing devflow also installs two dependencies, straight from the upstream repos and kept in sync with them:
 
