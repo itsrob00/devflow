@@ -60,7 +60,7 @@ Skills devflow doesn't use stay out, including pstack's `tdd` and `teach`, which
 ### Picking up later
 
 - A multi-session feature stops after the tickets. Run `/devflow:start ticket <ref>` for each one in a fresh session.
-- A big job ends each session with a handoff file. Continue with `/devflow:start resume <path>`.
+- A big job merges grilling-only tickets into one session, shows the remaining tickets after each one it finishes, and ends each session with a handoff file. Continue with `/devflow:start resume <path>`.
 - After a session that went sideways, run `/devflow:wrap`. It reviews the session (`/retro` or `/reflect`), runs `/correct` when the same mistake keeps coming back, and writes a handoff if work is unfinished.
 
 ## Settings
