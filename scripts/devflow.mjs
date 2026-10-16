@@ -37,7 +37,9 @@ function show (name) {
   const dir = path.dirname(s.file)
   const extra = fs.readdirSync(dir).filter(n => n !== 'SKILL.md')
   console.log(`# ${name}: ${s.file}`)
+  console.log(`# Read all of it and follow it as if the user had typed /${name}, including its phases and its completion checklist.`)
   console.log(`# Relative links resolve against ${dir}${extra.length ? ` (also there: ${extra.join(', ')})` : ''}`)
+  console.log('# When it calls another skill, run that one with devflow show too, not the Skill tool.')
   console.log(fs.readFileSync(s.file, 'utf8'))
 }
 
