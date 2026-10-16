@@ -4,9 +4,9 @@ description: Set up a repo for devflow, once per repo. Checks that Matt Pocock's
 disable-model-invocation: true
 ---
 
-`devflow` means `node "${CLAUDE_PLUGIN_ROOT}/scripts/devflow.mjs"`, run from the project root. Run each skill the way `/devflow:start` does: `devflow show <skill>`, then follow the SKILL.md it prints.
+`devflow` means `node "${CLAUDE_PLUGIN_ROOT}/scripts/devflow.mjs"`, run from the project root. Run each skill with `devflow show <skill>` and follow what it prints, not with the Skill tool.
 
-The setup skills below each explore, ask, show a draft and write, one after another, which turns setup into a long back-and-forth. Run them as one pass instead: explore everything first, ask every question at once, show every draft at once, then do the long work without stopping. Every step of each skill still happens; only the order and the number of interruptions change.
+Run the setup skills below as one pass: explore everything first, ask every question at once, show every draft at once, then do the long work without stopping. Every step of each skill still happens; only the order changes, so the user answers one round of questions and reviews one round of drafts.
 
 ## 1. Check
 
