@@ -8,7 +8,7 @@ export const DEFAULTS = {
   git_guard: true,
   adversarial_review: 'risky changes',
   small_changes: 'poteto-mode',
-  after_session: 'retro'
+  after_session: 'reflect'
 }
 
 const CHOICES = {

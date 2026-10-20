@@ -72,7 +72,7 @@ Set these in `/plugin`, under devflow, Configure options. Saying otherwise in yo
 | Git safety hook | on | Blocks `git push`, `reset --hard`, `clean -f`, `branch -D`, and commands that discard the whole working tree (`checkout .`, `restore .`, `checkout -f`, `switch --discard-changes`). Claude gives you the command to run instead. |
 | Multi-model review | risky changes | When the feature flow adds `/interrogate`: on risky changes (auth, data, money, concurrency, migrations, public APIs), always, or never. |
 | Small changes | poteto-mode | `poteto-mode` or `direct`. |
-| Session review | retro | Which review `/devflow:wrap` runs: `retro` or `reflect`. |
+| Session review | reflect | Which review `/devflow:wrap` runs: `retro` or `reflect`. |
 
 ## Contributing
 
