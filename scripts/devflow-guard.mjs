@@ -14,7 +14,7 @@ function deny (reason) {
     hookSpecificOutput: {
       hookEventName: 'PreToolUse',
       permissionDecision: 'deny',
-      permissionDecisionReason: `devflow git guard: ${reason}. Don't work around it: tell the user the exact command so they can run it themselves.`
+      permissionDecisionReason: `devflow git guard: ${reason}. Don't work around it; give the user the exact command to run.`
     }
   }))
   process.exit(0)

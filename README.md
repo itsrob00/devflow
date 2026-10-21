@@ -59,9 +59,15 @@ Skills devflow doesn't use stay out, including pstack's `tdd` and `teach`, which
 
 ### Picking up later
 
-- A multi-session feature stops after the tickets. Run `/devflow:start ticket <ref>` for each one in a fresh session.
-- A big job merges grilling-only tickets into one session, shows the remaining tickets after each one it finishes, and ends each session with a handoff file. Continue with `/devflow:start resume <path>`.
-- After a session that went sideways, run `/devflow:wrap`. It reviews the session (`/retro` or `/reflect`), runs `/correct` when the same mistake keeps coming back, and writes a handoff if work is unfinished.
+```
+/devflow:continue
+```
+
+Every flow is saved in the project under `.devflow/flows/` (git-ignored) with its step, tickets and last handoff. `/devflow:continue` lists the unfinished ones, asks which to pick up, and continues it from where it stopped. `/devflow:start` with no task does the same, and `/devflow:continue <id>` skips the question. A session works on one flow and reads only its folder; run `/clear` before switching. When Claude Code starts in a project with unfinished flows, devflow says so in one line. Each run that leaves work saves a short handoff; `/devflow:wrap` writes a fuller one.
+
+- A multi-session feature stops after the tickets. Run `/devflow:continue` in a fresh session for each one; it picks the next open ticket.
+- A big job merges grilling-only tickets into one session, shows the remaining tickets after each one it finishes, and ends each session with a handoff saved in its flow folder.
+- After a session that went sideways, run `/devflow:wrap`. It reviews the session (`/retro` or `/reflect`), runs `/correct` when the same mistake keeps coming back, and saves a handoff to the flow if work is unfinished.
 
 ## Settings
 
@@ -76,7 +82,7 @@ Set these in `/plugin`, under devflow, Configure options. Saying otherwise in yo
 
 ## Contributing
 
-`node --test` runs the git guard's tests. Add a case there for any command it should block or let through.
+`node --test` runs the tests for the git guard and the helper CLI. Add a guard case for any command it should block or let through.
 
 ## Credits
 
