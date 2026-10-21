@@ -76,6 +76,7 @@ Set these in `/plugin`, under devflow, Configure options. Saying otherwise in yo
 | Setting | Default | What it does |
 |---|---|---|
 | Git safety hook | on | Blocks `git push`, `reset --hard`, `clean -f`, `branch -D`, and commands that discard the whole working tree (`checkout .`, `restore .`, `checkout -f`, `switch --discard-changes`). Claude gives you the command to run instead. |
+| No code comments | on | Claude adds no comments or docstrings to code it writes or edits, including ones explaining the change, in every session, unless you ask. Existing comments stay unless a change makes them wrong. |
 | Multi-model review | risky changes | When the feature flow adds `/interrogate`: on risky changes (auth, data, money, concurrency, migrations, public APIs), always, or never. |
 | Small changes | poteto-mode | `poteto-mode` or `direct`. |
 | Session review | reflect | Which review `/devflow:wrap` runs: `retro` or `reflect`. |
