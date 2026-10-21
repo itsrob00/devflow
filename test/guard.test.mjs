@@ -1,7 +1,7 @@
 // node --test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { check } from '../scripts/devflow-guard.mjs'
+import { check } from '../plugin/scripts/devflow-guard.mjs'
 
 const blocked = [
   'git push', 'git push origin main', 'git push --force-with-lease', 'git -C repo push', 'git -c core.x=y push',

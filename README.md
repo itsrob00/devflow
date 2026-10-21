@@ -82,7 +82,7 @@ Set these in `/plugin`, under devflow, Configure options. Saying otherwise in yo
 
 ## Contributing
 
-`node --test` runs the tests for the git guard and the helper CLI. Add a guard case for any command it should block or let through.
+The plugin itself lives in `plugin/`, which is all that installing it copies. The tests stay at the repo root: `node --test` runs them for the git guard and the helper CLI. Add a guard case for any command it should block or let through.
 
 ## Credits
 
