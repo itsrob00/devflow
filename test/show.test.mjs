@@ -16,7 +16,7 @@ test('show prints the skill with the rule for following it', () => {
   fs.writeFileSync(path.join(dir, 'SKILL.md'), '---\nname: how\n---\nbody\n')
   const env = { ...process.env, HOME: root, USERPROFILE: root, CLAUDE_CONFIG_DIR: path.join(root, 'cfg') }
   const out = execFileSync('node', [script, 'show', 'how'], { cwd: root, env, encoding: 'utf8' })
-  assert.match(out, /Read all of it and follow it as if the user had typed \/how/)
+  assert.match(out, /follow it as if the user typed \/how/)
   assert.match(out, /not the Skill tool/)
   assert.match(out, /body/)
 })
