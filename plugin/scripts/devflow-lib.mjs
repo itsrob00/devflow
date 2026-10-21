@@ -135,14 +135,24 @@ function walk (dir, depth, out) {
   }
 }
 
-// Installed plugins, from installed_plugins.json. For the dependencies this repo's marketplace defines,
+// devflow's marketplace.json. The plugin is installed without it, so read the marketplace's own checkout,
+// or the repo root when running from a clone.
+function marketplace (installed) {
+  const local = readJson(fileURLToPath(new URL('../../.claude-plugin/marketplace.json', import.meta.url)))
+  if (local) return local
+  const id = Object.keys(installed?.plugins || {}).find(k => k.startsWith('devflow@'))
+  const known = readJson(path.join(claudeDir(), 'plugins', 'known_marketplaces.json'))
+  const dir = id && known?.[id.slice('devflow@'.length)]?.installLocation
+  return dir ? readJson(path.join(dir, '.claude-plugin', 'marketplace.json')) : null
+}
+
+// Installed plugins, from installed_plugins.json. For the dependencies devflow's marketplace defines,
 // `skills` lists the folders Claude Code registers; the rest of their checkout is ignored.
 function pluginRoots () {
   const listed = {}
-  const mkt = readJson(fileURLToPath(new URL('../.claude-plugin/marketplace.json', import.meta.url)))
-  for (const p of mkt?.plugins || []) if (p.skills) listed[p.name] = new Set(p.skills.map(d => path.normalize(d)))
-  const roots = []
   const installed = readJson(path.join(claudeDir(), 'plugins', 'installed_plugins.json'))
+  for (const p of marketplace(installed)?.plugins || []) if (p.skills) listed[p.name] = new Set(p.skills.map(d => path.normalize(d)))
+  const roots = []
   for (const [id, entries] of Object.entries(installed?.plugins || {})) {
     const plugin = id.split('@')[0]
     for (const e of [].concat(entries)) if (e?.installPath) roots.push({ dir: e.installPath, plugin, only: listed[plugin] })

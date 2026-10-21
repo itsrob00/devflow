@@ -28,20 +28,13 @@ function settings () {
   console.log(`session review: ${s.after_session}`)
 }
 
-function find (names) {
-  if (!names.length) { console.error('usage: devflow find <skill>...'); process.exit(2) }
-  const all = installedSkills(root)
-  for (const n of names) {
-    const s = findSkill(n, all)
-    if (s) console.log(`${n}\t${s.file}`)
-    else console.log(`${n}\tMISSING${SKILLS[n] ? `, install ${PACKS[SKILLS[n]].title}: ${PACKS[SKILLS[n]].install}` : ''}`)
-  }
-}
-
 function show (name) {
   if (!name) { console.error('usage: devflow show <skill>'); process.exit(2) }
   const s = findSkill(name, installedSkills(root))
-  if (!s) { find([name]); process.exit(1) }
+  if (!s) {
+    console.log(`${name}\tMISSING${SKILLS[name] ? `, install ${PACKS[SKILLS[name]].title}: ${PACKS[SKILLS[name]].install}` : ''}`)
+    process.exit(1)
+  }
   const extra = fs.readdirSync(path.dirname(s.file)).filter(n => n !== 'SKILL.md')
   console.log(`# ${name}: ${s.file}${extra.length ? ` (its folder also has ${extra.join(', ')})` : ''}`)
   console.log(`# Read all of it and follow it as if the user typed /${name}, phases and completion checklist included. Relative links resolve against its folder. Run any skill it calls with devflow show too, not the Skill tool.`)
@@ -363,13 +356,12 @@ function reminder () {
 
 const [cmd, ...args] = process.argv.slice(2)
 if (cmd === 'settings') settings()
-else if (cmd === 'find') find(args)
 else if (cmd === 'show') show(args[0])
 else if (cmd === 'doctor') doctor(args[0])
 else if (cmd === 'flows') flows()
 else if (cmd === 'flow') flow(args)
 else if (cmd === 'reminder') reminder()
 else {
-  console.error('usage: devflow settings | find <skill>... | show <skill> | doctor [flow] | flows | flow new|set|show|done|handoff ...')
+  console.error('usage: devflow settings | show <skill> | doctor [flow] | flows | flow new|set|show|done|handoff ...')
   process.exit(2)
 }

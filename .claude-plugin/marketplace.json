@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "devflow",
-      "source": "./",
+      "source": "./plugin",
       "description": "Picks the right flow for a task (feature, bug, big job, small change), runs each step's skill, and proves the result."
     },
     {

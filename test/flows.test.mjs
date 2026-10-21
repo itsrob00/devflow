@@ -7,7 +7,7 @@ import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
-const script = fileURLToPath(new URL('../scripts/devflow.mjs', import.meta.url))
+const script = fileURLToPath(new URL('../plugin/scripts/devflow.mjs', import.meta.url))
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-flows-'))
 const run = (root, ...args) => execFileSync('node', [script, ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, TMPDIR: root, TMP: root, TEMP: root } })
 const write = (file, text) => {

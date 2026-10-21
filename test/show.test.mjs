@@ -7,7 +7,7 @@ import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
-const script = fileURLToPath(new URL('../scripts/devflow.mjs', import.meta.url))
+const script = fileURLToPath(new URL('../plugin/scripts/devflow.mjs', import.meta.url))
 
 test('show prints the skill with the rule for following it', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-show-'))
