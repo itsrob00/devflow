@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 export const DEFAULTS = {
   git_guard: true,
+  no_comments: true,
   adversarial_review: 'risky changes',
   small_changes: 'poteto-mode',
   after_session: 'reflect'
@@ -41,7 +42,7 @@ export function loadSettings () {
   const s = { ...DEFAULTS }
   for (const [k, v] of Object.entries(pluginOptions())) {
     if (!(k in DEFAULTS) || v === '' || v === null || v === undefined) continue
-    if (k === 'git_guard') s[k] = !(v === false || v === 'false')
+    if (typeof DEFAULTS[k] === 'boolean') s[k] = !(v === false || v === 'false')
     else if (CHOICES[k].includes(v)) s[k] = v
   }
   if (process.env.DEVFLOW_GUARD === 'off') s.git_guard = false

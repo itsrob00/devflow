@@ -11,6 +11,7 @@
 //   devflow flow done <id>             mark a flow finished
 //   devflow flow handoff <id> <file>   move a handoff written elsewhere into the flow
 //   devflow reminder                   SessionStart hook: tells the user when there are flows to continue
+//   devflow rules                      SessionStart hook: the coding rules the settings turn on, for every session
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -23,6 +24,7 @@ const root = (process.argv[2] === 'reminder' && process.env.CLAUDE_PROJECT_DIR) 
 function settings () {
   const s = loadSettings()
   console.log(`git guard: ${s.git_guard ? 'on' : 'off'}`)
+  console.log(`no code comments: ${s.no_comments ? 'on' : 'off'}`)
   console.log(`multi-model review: ${s.adversarial_review}`)
   console.log(`small changes: ${s.small_changes}`)
   console.log(`session review: ${s.after_session}`)
@@ -354,6 +356,17 @@ function reminder () {
   }))
 }
 
+// SessionStart hook, also after compaction, so the rule outlives the summary.
+function rules () {
+  if (!loadSettings().no_comments) return
+  console.log(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: 'SessionStart',
+      additionalContext: "Don't add comments or docstrings to code you write or edit, including ones explaining the change, unless the user asks. Leave existing comments alone unless your change makes them wrong."
+    }
+  }))
+}
+
 const [cmd, ...args] = process.argv.slice(2)
 if (cmd === 'settings') settings()
 else if (cmd === 'show') show(args[0])
@@ -361,6 +374,7 @@ else if (cmd === 'doctor') doctor(args[0])
 else if (cmd === 'flows') flows()
 else if (cmd === 'flow') flow(args)
 else if (cmd === 'reminder') reminder()
+else if (cmd === 'rules') rules()
 else {
   console.error('usage: devflow settings | show <skill> | doctor [flow] | flows | flow new|set|show|done|handoff ...')
   process.exit(2)

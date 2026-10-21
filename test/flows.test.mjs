@@ -116,3 +116,17 @@ test('the session-start reminder names unfinished flows, and stays quiet without
   assert.equal(out.hookSpecificOutput.hookEventName, 'SessionStart')
   assert.match(out.hookSpecificOutput.additionalContext, /\/devflow:continue/)
 })
+
+test('no code comments is on by default, and every session gets its rule until it is turned off', () => {
+  const root = tmp()
+  const cfg = path.join(root, 'cfg')
+  const env = v => ({ ...process.env, CLAUDE_CONFIG_DIR: cfg, CLAUDE_PLUGIN_OPTION_NO_COMMENTS: v })
+  const rules = v => execFileSync('node', [script, 'rules'], { cwd: root, encoding: 'utf8', env: env(v) })
+  const out = JSON.parse(rules(''))
+  assert.equal(out.hookSpecificOutput.hookEventName, 'SessionStart')
+  assert.match(out.hookSpecificOutput.additionalContext, /^Don't add comments/)
+  assert.equal(rules('false'), '')
+  write(path.join(cfg, 'settings.json'), JSON.stringify({ pluginConfigs: { 'devflow@devflow': { options: { no_comments: false } } } }))
+  assert.equal(rules(''), '')
+  assert.match(execFileSync('node', [script, 'settings'], { cwd: root, encoding: 'utf8', env: env('') }), /^no code comments: off$/m)
+})
