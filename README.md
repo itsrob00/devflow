@@ -25,13 +25,12 @@ Requires Claude Code, Node 18 or later, and git.
    /devflow:setup
    ```
 
-   It checks that devflow's skills are installed without clashes, then sets up what the repo is missing:
-   - your issue tracker, with `/setup-matt-pocock-skills`
-   - pstack's models, with `/setup-pstack`. Its defaults use Grok, which Claude Code can't run, so setup picks Claude models.
-   - a verification skill that drives your app to prove changes work, with `/create-verification-skill`
+   It checks that devflow's skills are installed without clashes, then sets up what the repo is missing, in about a minute:
+   - your issue tracker: GitHub or GitLab if the remote points there, otherwise local markdown, written to `docs/agents/`
+   - pstack's models, once per machine. `/setup-pstack` defaults to Grok, which Claude Code can't run, so setup writes Claude models at the large budget: Sonnet for the fast code roles Grok fills, Opus for judgment.
    - `git init`, if the folder isn't a repo yet
 
-   It asks all its questions at once, shows every draft for one review, then does the rest without stopping. If you forget, `/devflow:start` runs setup for you when a flow needs something that's missing, but then it happens in the middle of your task.
+   It picks defaults instead of asking, and only asks when it can't decide (a monorepo, or a clashing `tdd` or `teach` copy). Edit `docs/agents/*.md` or rerun `/setup-pstack` to change its choices. The verification skill that drives your app to prove changes work isn't built here: the first feature or bug flow that needs it offers to build it. If you forget, `/devflow:start` runs setup for you when a flow needs something that's missing, but then it happens in the middle of your task.
 
 3. **Start work:**
 
