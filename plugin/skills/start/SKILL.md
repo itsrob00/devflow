@@ -23,7 +23,8 @@ Each step names a skill. Run it with `devflow show <skill>` and follow what it p
 Each flow is saved under `.devflow/flows/<id>/`; the next session starts from it. Keep it current:
 
 - `devflow flow set <id> step="<n>. <name>"` each time a step finishes, naming the step to continue from. Add `next="..."` when the next session needs one more line (which ticket, which decision is open), and `tickets=<folder or tracker ref>` when `to-tickets` or `wayfinder` publishes tickets.
-- `devflow flow done <id>` when the flow finishes.
+- `devflow flow set <id> pr=<branch, PR number or url>` when the work goes up as a PR. A flow with a PR is finished when the PR merges: `devflow flows` asks `gh` and marks it done then, so don't run `flow done` for it.
+- `devflow flow done <id>` when a flow finishes with no PR to wait on.
 
 One conversation works on one flow: use only its id, and don't read other flows' folders or take steps from them, even related ones.
 
@@ -67,7 +68,7 @@ When a step needs something only the user can do (secrets, infrastructure, a thi
 
 ## Finish
 
-Save where the flow stands: `devflow flow done <id>` if it's finished. If work is left, `devflow flow set <id> step=...` and write a short handoff to `.devflow/flows/<id>/handoff.md` (replacing the one there) with only what `devflow flow show` doesn't give:
+Save where the flow stands. Finished and going up as a PR: save its `pr=` (it's marked done when the PR merges). Finished with no PR: `devflow flow done <id>`. If work is left, `devflow flow set <id> step=...` and write a short handoff to `.devflow/flows/<id>/handoff.md` (replacing the one there) with only what `devflow flow show` doesn't give:
 
 ```
 # <title>

@@ -4,9 +4,9 @@
 //   devflow find <skill>...            the SKILL.md devflow runs for each skill, or MISSING
 //   devflow show <skill>               print that SKILL.md, with its folder for resolving relative links
 //   devflow doctor [flow]              what is installed and set up, for one flow or all of them; runs git init if the folder isn't a repo
-//   devflow flows                      unfinished flows to continue, newest first, then older work devflow didn't track
+//   devflow flows                      unfinished flows to continue, newest first, then older work devflow didn't track; marks flows whose PR merged done
 //   devflow flow new <flow> <title>    save a new flow; prints its id and folder
-//   devflow flow set <id> key=value... update a saved flow: step, next, tickets, title, status, flow
+//   devflow flow set <id> key=value... update a saved flow: step, next, tickets, pr, title, status, flow
 //   devflow flow show <id>             everything a session needs to continue that flow, and nothing from the others
 //   devflow flow done <id>             mark a flow finished
 //   devflow flow handoff <id> <file>   move a handoff written elsewhere into the flow
@@ -139,7 +139,7 @@ function doctor (only) {
 // ends with work left, handoff.md. A session continuing one flow reads only that folder.
 const FLOWS_DIR = path.join(root, '.devflow', 'flows')
 const FIRST_STEP = { feature: '1. Understand', bug: '1. History', big: '1. Plan', small: '1. Small' }
-const FIELDS = ['step', 'next', 'tickets', 'title', 'status', 'flow']
+const FIELDS = ['step', 'next', 'tickets', 'pr', 'title', 'status', 'flow']
 const ID = /^[a-z0-9][a-z0-9-]*$/
 
 const rel = p => path.relative(root, p).split(path.sep).join('/')
@@ -251,6 +251,7 @@ function flow ([sub, id, ...rest]) {
     if (state.status !== 'active') console.log(`status: ${state.status}`)
     console.log(`step: ${state.step}`)
     if (state.next) console.log(`next: ${state.next}`)
+    if (state.pr) console.log(`pr: ${state.pr}`)
     const t = nextTicket(state)
     if (t) console.log(t)
     console.log(`folder: ${rel(dir)}`)
@@ -316,23 +317,51 @@ function untracked (flows) {
   return out.sort((a, b) => b.time - a.time)
 }
 
+// A flow that ships as a PR is finished when the PR merges, so no later session has to close it. gh answers for the
+// PR; without gh, a login or the network, the flow stays as it is. Open local tickets keep the flow going.
+function prState (ref) {
+  try {
+    return execFileSync('gh', ['pr', 'view', ref, '--json', 'state', '--jq', '.state'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 }).trim()
+  } catch { return '' }
+}
+
+function closeMerged (flows) {
+  const merged = []
+  for (const f of flows) {
+    if (f.status === 'done' || !f.pr) continue
+    const t = f.tickets && ticketFiles(path.resolve(root, f.tickets))
+    if (t && t.open.length) continue
+    f.prState = prState(f.pr)
+    if (f.prState !== 'MERGED') continue
+    const { prState: _, ...state } = f
+    writeState({ ...state, status: 'done' })
+    f.status = 'done'
+    merged.push(f)
+  }
+  return merged
+}
+
 function collect () {
   const saved = savedFlows()
   const ok = saved.filter(f => !f.broken)
+  const merged = closeMerged(ok)
   return {
     active: ok.filter(f => f.status !== 'done').sort((a, b) => b.updated.localeCompare(a.updated)),
+    merged,
     broken: saved.filter(f => f.broken),
     old: untracked(ok)
   }
 }
 
 function flows () {
-  const { active, broken, old } = collect()
+  const { active, merged, broken, old } = collect()
+  for (const f of merged) console.log(`done: ${f.id} · ${f.title} (PR ${f.pr} merged)`)
   if (!active.length && !old.length && !broken.length) { console.log('none'); return }
   active.forEach((f, i) => {
     const t = nextTicket(f)
+    const pr = f.prState === 'OPEN' ? `waiting on PR ${f.pr} to merge` : f.prState === 'CLOSED' ? `PR ${f.pr} was closed without merging` : ''
     console.log(`${i + 1}. ${f.id} · ${cap(f.flow)} · step ${f.step} · ${f.updated.slice(0, 10)} · ${f.title}`)
-    if (f.next || t) console.log(`   ${[f.next, t].filter(Boolean).join('; ')}`)
+    if (f.next || t || pr) console.log(`   ${[pr, f.next, t].filter(Boolean).join('; ')}`)
   })
   for (const f of broken) console.log(`unreadable: ${f.id}: ${f.broken}`)
   if (old.length) {

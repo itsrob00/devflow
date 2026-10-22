@@ -3,7 +3,7 @@
 Lists this project's unfinished flows, asks which one, and continues it where it stopped, with nothing from the others. The task the user gave `/devflow:start` (if any) names which one.
 
 1. **One flow per conversation.** If this conversation already worked on a flow, stop: tell the user to `/clear`, then run `/devflow:start <id>` for the one they want.
-2. **List.** Run `devflow flows`. Each saved flow is a numbered line (id, flow, step, date, title), then what's next. Below come older handoffs and tickets not saved as flows, each with the command that continues it.
+2. **List.** Run `devflow flows`. Each saved flow is a numbered line (id, flow, step, date, title), then what's next. Below come older handoffs and tickets not saved as flows, each with the command that continues it. A `done:` line is a flow whose PR merged since the last check; it's closed now, so mention it in one line and don't offer it.
 3. **Pick.** Don't read any flow's files or explore the code before the user picks.
    - Nothing listed: say there's no unfinished devflow work here and `/devflow:start <task>` starts some. Stop.
    - The task names one (an id, a number, or words matching one title): take it.
