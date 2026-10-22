@@ -16,7 +16,7 @@ Before anything else, see what the task is:
 
 ## Running a step's skill
 
-Each step names a skill. Run it with `devflow show <skill>` and follow what it prints, not with the Skill tool and not your own way. A step that looks obvious still runs its skill: an easy bug still gets `diagnosing-bugs`' red loop and `blast-radius`'s proven safety fact. Where a skill asks the user something, ask; don't answer for them. If the user said they're away, take the recommended option and say which.
+Each step names a skill. Run it with `devflow show <skill>` and follow what it prints, not with the Skill tool and not your own way. Show each skill once per conversation; if its text is still in context, follow it without showing it again. A step that looks obvious still runs its skill: an easy bug still gets `diagnosing-bugs`' red loop and `blast-radius`'s proven safety fact. Where a skill asks the user something, ask; don't answer for them. If the user said they're away, take the recommended option and say which.
 
 ## Saved flows
 
@@ -30,11 +30,6 @@ One conversation works on one flow: use only its id, and don't read other flows'
 ## Resuming
 
 `resume <id>`: skip step 1 (don't pick a flow, rerun `doctor` or `settings`, or explore the code to get oriented). Run `devflow flow show <id>` and go to **2. Run the flow** with the flow it names, starting the todo list at its step. Its handoff, if any, gives the map, playbook, decision log and spec paths, the open ticket, and settings the user changed. A Feature with a next ticket works it from Feature step 4. A Big flow continues `big.md` at the saved step.
-
-Older work not saved as a flow:
-
-- `resume <path>`: read that handoff; it names the flow and step. Save it with `devflow flow new`, `devflow flow set <id> step=...` and `devflow flow handoff <id> <path>`, then continue as above.
-- `ticket <ref>`: save a Feature flow named after the ticket's feature, run `devflow flow set <id> tickets=<ref>`, and work the ticket from Feature step 4.
 
 Don't rerun a step an earlier session finished. Run `devflow show` for a skill when you reach its step, not before; if it reports the skill missing, run `devflow doctor <flow>` then.
 
@@ -67,6 +62,8 @@ Keep a todo list whose first items are the flow's steps, each with its skill. Ma
 ## Git
 
 With the git guard on, `git push`, `reset --hard`, `clean -f`, `branch -D`, and commands that discard the whole working tree are blocked. Run a blocked command on its own, never chained after a commit. When a step needs one, give the user the exact command and continue with what doesn't depend on it. Never look for another way to do the same thing.
+
+When a step needs something only the user can do (secrets, infrastructure, a third-party dashboard, a one-off cutover) and it takes more than one command, run `wizard` to hand them a script for it.
 
 ## Finish
 

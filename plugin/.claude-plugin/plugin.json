@@ -46,7 +46,7 @@
     "small_changes": {
       "type": "string",
       "title": "Small changes",
-      "description": "How the small-change flow works. poteto-mode: run pstack's /poteto-mode. direct: make the change, run the related tests, and show the diff.",
+      "description": "How the small-change flow works. poteto-mode: run pstack's /poteto-mode, which uses far more tokens and may spawn subagents. direct: make the change, run the related tests, and show the diff.",
       "options": [
         "poteto-mode",
         "direct"

@@ -75,6 +75,7 @@ export const SKILLS = {
   'to-spec': MATT,
   'to-tickets': MATT,
   implement: MATT,
+  'implement-spec': MATT,
   tdd: MATT,
   'codebase-design': MATT,
   'code-review': MATT,
@@ -85,6 +86,7 @@ export const SKILLS = {
   handoff: MATT,
   retro: MATT,
   'writing-for-agents': MATT,
+  wizard: MATT,
   how: PSTACK,
   why: PSTACK,
   architect: PSTACK,
@@ -105,9 +107,9 @@ export const SKILLS = {
 export const FLOWS = {
   setup: ['setup-matt-pocock-skills', 'setup-pstack', 'create-verification-skill', 'maintain-verification-skill'],
   feature: ['how', 'grill-with-docs', 'grilling', 'domain-modeling', 'prototype', 'to-spec', 'to-tickets', 'architect', 'arena',
-    'implement', 'tdd', 'codebase-design', 'code-review', 'blast-radius', 'why', 'unslop', 'interrogate', 'pr'],
+    'implement', 'implement-spec', 'tdd', 'codebase-design', 'code-review', 'blast-radius', 'why', 'unslop', 'interrogate', 'pr', 'wizard'],
   bug: ['why', 'how', 'diagnosing-bugs', 'blast-radius', 'arena', 'unslop'],
-  big: ['wayfinder', 'research', 'figure-it-out', 'show-me-your-work', 'handoff', 'to-spec', 'to-tickets'],
+  big: ['wayfinder', 'research', 'figure-it-out', 'show-me-your-work', 'handoff', 'to-spec', 'to-tickets', 'implement-spec', 'wizard'],
   small: ['poteto-mode'],
   wrap: ['retro', 'writing-for-agents', 'reflect', 'correct', 'handoff']
 }

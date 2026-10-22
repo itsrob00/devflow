@@ -58,4 +58,4 @@ Work through the rest without asking again, unless something fails:
 
 ## 6. Done
 
-Run `devflow doctor` and show a short checklist: each piece with a ✓ and the file it wrote, anything still open with why, and how to change each later (edit `docs/agents/*.md`, rerun `/setup-pstack`, `/maintain-verification-skill`). If `/devflow:start` brought you here with a task, go back to it now. Otherwise end with the next step: `/devflow:start <what you want done>`.
+Run `devflow doctor` and show a short checklist: each piece with a ✓ and the file it wrote, anything still open with why, and how to change each later (edit `docs/agents/*.md`, rerun `/setup-pstack`, `/maintain-verification-skill`). Add one line: small changes run `/poteto-mode`, which uses far more tokens than the `direct` option; switch in `/plugin`, under devflow, Configure options. If `/devflow:start` brought you here with a task, go back to it now. Otherwise end with the next step: `/devflow:start <what you want done>`.

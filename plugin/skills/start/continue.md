@@ -10,4 +10,6 @@ Lists this project's unfinished flows, asks which one, and continues it where it
    - Only one entry: say which and continue with it.
    - Otherwise ask with `AskUserQuestion`, newest first, each option labelled with the title, with the flow, step and date as its description. It holds four options; with more, put the whole numbered list in the question and let the user answer with a number or id. Numbers refer to the list you just printed.
    - An `unreadable:` line is a flow with a broken state file: mention it, and don't offer it.
-4. **Continue.** Go back to the start skill and follow it with the task `resume <id>`, or for an older entry, the arguments of its listed command (`resume <path>` or `ticket <ref>`).
+4. **Continue.** Go back to the start skill and follow it with the task `resume <id>`. For an older entry, first save it as a flow, then do the same:
+   - A handoff (`resume <path>`): read it; it names the flow and step. Run `devflow flow new`, `devflow flow set <id> step=...` and `devflow flow handoff <id> <path>`.
+   - A ticket (`ticket <ref>`): `devflow flow new feature <the ticket's feature>`, then `devflow flow set <id> tickets=<ref> step="4. Shape"`.

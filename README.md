@@ -22,7 +22,7 @@ If the repo is missing anything the flow needs, it runs devflow's setup before s
 
 Installing devflow also installs two dependencies, straight from the upstream repos and kept in sync with them:
 
-- **devflow-matt**: the 18 of Matt Pocock's skills that devflow runs.
+- **devflow-matt**: the 20 of Matt Pocock's skills that devflow runs.
 - **devflow-pstack**: the 43 pstack skills devflow runs, including `unslop`, `/poteto-mode` and its principles.
 
 Skills devflow doesn't use stay out, including pstack's `tdd` and `teach`, which would clash with Matt's. The ones it installs show in the slash menu under their plugin name, such as `/devflow-pstack:unslop` or `/devflow-matt:tdd`; devflow runs them for you, so you don't need to.
@@ -51,7 +51,7 @@ Once a flow is running, just talk to Claude; you don't retype `/devflow` with ea
 
 **Feature**: new behaviour that needs a design decision.
 1. `how`, then `grill-with-docs` (and `prototype` if useful)
-2. `to-spec` and `to-tickets` if it needs more than one session
+2. `to-spec` and `to-tickets` if it needs more than one session (`implement-spec` can then build the tickets in parallel in one run)
 3. `architect`, then `implement` (which drives `tdd` and `code-review`)
 4. `blast-radius`, plus `interrogate` on risky changes
 5. Prove it with your `verify-*` skill, then `pr`
@@ -85,7 +85,7 @@ Set these in `/plugin`, under devflow, Configure options. Saying otherwise in yo
 | Git safety hook | on | Blocks `git push`, `reset --hard`, `clean -f`, `branch -D`, and commands that discard the whole working tree (`checkout .`, `restore .`, `checkout -f`, `switch --discard-changes`). Claude gives you the command to run instead. |
 | No code comments | on | Claude adds no comments or docstrings to code it writes or edits, including ones explaining the change, in every session, unless you ask. Existing comments stay unless a change makes them wrong. |
 | Multi-model review | risky changes | When the feature flow adds `/interrogate`: on risky changes (auth, data, money, concurrency, migrations, public APIs), always, or never. |
-| Small changes | poteto-mode | `poteto-mode` or `direct`. |
+| Small changes | poteto-mode | `poteto-mode`, which uses far more tokens, or `direct`: make the change, run the closest tests, show the diff. |
 | Session review | reflect | Which review `/devflow:wrap` runs: `retro` or `reflect`. |
 
 ## Contributing
