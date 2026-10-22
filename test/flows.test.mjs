@@ -112,9 +112,9 @@ test('the session-start reminder names unfinished flows, and stays quiet without
   run(root, 'flow', 'new', 'small', 'Rename tab')
   run(root, 'flow', 'done', 'rename-tab')
   const out = JSON.parse(run(root, 'reminder'))
-  assert.equal(out.systemMessage, 'devflow: 1 unfinished flow here (Cart total). Run /devflow:continue to pick one up.')
+  assert.equal(out.systemMessage, 'devflow: 1 unfinished flow here (Cart total). Run /devflow:start to pick one up.')
   assert.equal(out.hookSpecificOutput.hookEventName, 'SessionStart')
-  assert.match(out.hookSpecificOutput.additionalContext, /\/devflow:continue/)
+  assert.match(out.hookSpecificOutput.additionalContext, /\/devflow:start/)
 })
 
 test('no code comments is on by default, and every session gets its rule until it is turned off', () => {
@@ -129,4 +129,44 @@ test('no code comments is on by default, and every session gets its rule until i
   write(path.join(cfg, 'settings.json'), JSON.stringify({ pluginConfigs: { 'devflow@devflow': { options: { no_comments: false } } } }))
   assert.equal(rules(''), '')
   assert.match(execFileSync('node', [script, 'settings'], { cwd: root, encoding: 'utf8', env: env('') }), /^no code comments: off$/m)
+})
+
+test('a conversation is linked to the flow its commands work on, reminded of it on every message, and let go when it is done', () => {
+  const root = tmp()
+  const hook = (cmd, input) => execFileSync('node', [script, cmd], { cwd: root, encoding: 'utf8', input: JSON.stringify(input), env: { ...process.env, CLAUDE_PROJECT_DIR: root } })
+  const bash = (session, command, stdout = '') => hook('track', { session_id: session, tool_name: 'Bash', tool_input: { command }, tool_response: { stdout } })
+  const prompt = session => hook('active', { session_id: session, hook_event_name: 'UserPromptSubmit', prompt: 'go with B' })
+  const devflow = 'node "/plugins/devflow/scripts/devflow.mjs"'
+
+  const created = run(root, 'flow', 'new', 'feature', 'CSV export')
+  run(root, 'flow', 'new', 'bug', 'Cart total')
+  assert.equal(prompt('s1'), '')
+
+  bash('s1', `${devflow} flow new feature CSV export`, created)
+  const out = JSON.parse(prompt('s1'))
+  assert.equal(out.hookSpecificOutput.hookEventName, 'UserPromptSubmit')
+  assert.match(out.hookSpecificOutput.additionalContext, /^devflow: on flow csv-export \(Feature: CSV export\), step 1\. Understand\./)
+  assert.match(out.hookSpecificOutput.additionalContext, /skills[\\/]start[\\/]SKILL\.md/)
+  assert.doesNotMatch(out.hookSpecificOutput.additionalContext, /cart/i)
+  assert.equal(prompt('s2'), '')
+
+  bash('s2', `cd app && ${devflow} flow show cart-total && echo ok`)
+  run(root, 'flow', 'set', 'cart-total', 'step=2. Diagnose and fix')
+  assert.match(prompt('s2'), /flow cart-total \(Bug: Cart total\), step 2\. Diagnose and fix/)
+  const compact = JSON.parse(hook('active', { session_id: 's2', hook_event_name: 'SessionStart', source: 'compact' }))
+  assert.equal(compact.hookSpecificOutput.hookEventName, 'SessionStart')
+
+  bash('s2', `${devflow} flow show nope`)
+  bash('s2', 'git status')
+  bash('../x', `${devflow} flow show csv-export`)
+  assert.match(prompt('s2'), /flow cart-total/)
+  assert.ok(!fs.existsSync(path.join(root, '.devflow', 'x')))
+
+  bash('s2', `${devflow} flow done csv-export`)
+  assert.match(prompt('s2'), /flow cart-total/)
+  run(root, 'flow', 'done', 'cart-total')
+  assert.equal(prompt('s2'), '')
+  bash('s2', `${devflow} flow done cart-total`)
+  assert.ok(!fs.existsSync(path.join(root, '.devflow', 'sessions', 's2')))
+  assert.equal(hook('active', {}), '')
 })

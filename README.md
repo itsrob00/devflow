@@ -15,17 +15,17 @@ Requires Claude Code, Node 18 or later, and git.
 ```
 /plugin marketplace add itsrob00/devflow
 /plugin install devflow@devflow
-/devflow:setup
+/devflow:start <what you want done>
 ```
 
-`/devflow:setup` runs once per repo. It sets up your issue tracker (`/setup-matt-pocock-skills`), pstack's models (`/setup-pstack`; its defaults use Grok, which Claude Code can't run) and a verification skill that drives your app (`/create-verification-skill`), and runs `git init` if the folder isn't a repo. It asks all its questions at once, shows every draft for one review, then does the rest without stopping.
+If the repo is missing anything the flow needs, it runs devflow's setup before starting. Setup configures your issue tracker (`/setup-matt-pocock-skills`), pstack's models (`/setup-pstack`; its defaults use Grok, which Claude Code can't run) and a verification skill that drives your app (`/create-verification-skill`), and runs `git init` if the folder isn't a repo. It asks all its questions at once, shows every draft for one review, then does the rest without stopping. You can also run it yourself with `/devflow:setup`.
 
 Installing devflow also installs two dependencies, straight from the upstream repos and kept in sync with them:
 
-- **devflow-matt**: the 18 of Matt Pocock's skills that devflow runs.
+- **devflow-matt**: the 20 of Matt Pocock's skills that devflow runs.
 - **devflow-pstack**: the 43 pstack skills devflow runs, including `unslop`, `/poteto-mode` and its principles.
 
-Skills devflow doesn't use stay out, including pstack's `tdd` and `teach`, which would clash with Matt's. Their commands carry the plugin name, such as `/devflow-pstack:unslop` or `/devflow-matt:tdd`.
+Skills devflow doesn't use stay out, including pstack's `tdd` and `teach`, which would clash with Matt's. The ones it installs show in the slash menu under their plugin name, such as `/devflow-pstack:unslop` or `/devflow-matt:tdd`; devflow runs them for you, so you don't need to.
 
 ## Use
 
@@ -36,11 +36,22 @@ Skills devflow doesn't use stay out, including pstack's `tdd` and `teach`, which
 /devflow:start rename the Settings tab to Preferences     → Small
 ```
 
+These are the only commands you need:
+
+| Run | What it does |
+|---|---|
+| `/devflow:start <task>` | Starts a flow for the task, setting the repo up first if it needs it. |
+| `/devflow:start` | Picks up unfinished work. |
+| `/devflow:wrap` | Reviews the session and saves a handoff. |
+| `/devflow:setup` | Sets up whatever the repo is still missing. `/devflow:start` runs it for you when a flow needs it. |
+
+Once a flow is running, just talk to Claude; you don't retype `/devflow` with each message.
+
 ### The four flows
 
 **Feature**: new behaviour that needs a design decision.
 1. `how`, then `grill-with-docs` (and `prototype` if useful)
-2. `to-spec` and `to-tickets` if it needs more than one session
+2. `to-spec` and `to-tickets` if it needs more than one session (`implement-spec` can then build the tickets in parallel in one run)
 3. `architect`, then `implement` (which drives `tdd` and `code-review`)
 4. `blast-radius`, plus `interrogate` on risky changes
 5. Prove it with your `verify-*` skill, then `pr`
@@ -59,13 +70,9 @@ Skills devflow doesn't use stay out, including pstack's `tdd` and `teach`, which
 
 ### Picking up later
 
-```
-/devflow:continue
-```
+Every flow is saved in the project under `.devflow/flows/` (git-ignored) with its step, tickets and last handoff. `/devflow:start` with no task lists the unfinished ones, asks which to pick up, and continues it from where it stopped; `/devflow:start <id>` skips the question. A session works on one flow and reads only its folder; run `/clear` before switching. Once a conversation starts or continues a flow, devflow reminds Claude of it with every message you send, until the flow finishes or you `/clear`. When Claude Code starts in a project with unfinished flows, devflow says so in one line. Each run that leaves work saves a short handoff; `/devflow:wrap` writes a fuller one.
 
-Every flow is saved in the project under `.devflow/flows/` (git-ignored) with its step, tickets and last handoff. `/devflow:continue` lists the unfinished ones, asks which to pick up, and continues it from where it stopped. `/devflow:start` with no task does the same, and `/devflow:continue <id>` skips the question. A session works on one flow and reads only its folder; run `/clear` before switching. When Claude Code starts in a project with unfinished flows, devflow says so in one line. Each run that leaves work saves a short handoff; `/devflow:wrap` writes a fuller one.
-
-- A multi-session feature stops after the tickets. Run `/devflow:continue` in a fresh session for each one; it picks the next open ticket.
+- A multi-session feature stops after the tickets. Run `/devflow:start` in a fresh session for each one; it picks the next open ticket.
 - A big job merges grilling-only tickets into one session, shows the remaining tickets after each one it finishes, and ends each session with a handoff saved in its flow folder.
 - After a session that went sideways, run `/devflow:wrap`. It reviews the session (`/retro` or `/reflect`), runs `/correct` when the same mistake keeps coming back, and saves a handoff to the flow if work is unfinished.
 
@@ -78,12 +85,12 @@ Set these in `/plugin`, under devflow, Configure options. Saying otherwise in yo
 | Git safety hook | on | Blocks `git push`, `reset --hard`, `clean -f`, `branch -D`, and commands that discard the whole working tree (`checkout .`, `restore .`, `checkout -f`, `switch --discard-changes`). Claude gives you the command to run instead. |
 | No code comments | on | Claude adds no comments or docstrings to code it writes or edits, including ones explaining the change, in every session, unless you ask. Existing comments stay unless a change makes them wrong. |
 | Multi-model review | risky changes | When the feature flow adds `/interrogate`: on risky changes (auth, data, money, concurrency, migrations, public APIs), always, or never. |
-| Small changes | poteto-mode | `poteto-mode` or `direct`. |
+| Small changes | poteto-mode | `poteto-mode`, which uses far more tokens, or `direct`: make the change, run the closest tests, show the diff. |
 | Session review | reflect | Which review `/devflow:wrap` runs: `retro` or `reflect`. |
 
 ## Contributing
 
-The plugin itself lives in `plugin/`, which is all that installing it copies. The tests stay at the repo root: `node --test` runs them for the git guard and the helper CLI. Add a guard case for any command it should block or let through.
+The plugin itself lives in `plugin/`, which is all that installing it copies. The tests stay at the repo root: `node --test` runs them for the git guard, the helper CLI and its hooks. Add a guard case for any command it should block or let through.
 
 ## Credits
 

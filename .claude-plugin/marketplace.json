@@ -20,7 +20,7 @@
         "path": "skills"
       },
       "strict": false,
-      "description": "The 18 of Matt Pocock's skills that devflow runs, from mattpocock/skills (MIT).",
+      "description": "The 20 of Matt Pocock's skills that devflow runs, from mattpocock/skills (MIT).",
       "author": {
         "name": "Matt Pocock"
       },
@@ -34,6 +34,7 @@
         "./engineering/to-spec",
         "./engineering/to-tickets",
         "./engineering/implement",
+        "./engineering/implement-spec",
         "./engineering/tdd",
         "./engineering/codebase-design",
         "./engineering/code-review",
@@ -42,6 +43,7 @@
         "./engineering/wayfinder",
         "./engineering/research",
         "./engineering/retro",
+        "./engineering/wizard",
         "./productivity/grilling",
         "./productivity/handoff",
         "./productivity/writing-for-agents"
