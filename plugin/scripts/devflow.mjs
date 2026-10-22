@@ -321,7 +321,7 @@ function untracked (flows) {
       const text = fs.readFileSync(file, 'utf8')
       if (!/handoff|devflow/i.test(n + text.slice(0, 2000)) || !namesProject(text)) continue
       const h = /^#\s+(.+)$/m.exec(text)
-      out.push({ time: mtimeMs, head: `handoff in the temp folder · ${day(mtimeMs)} · ${h ? h[1].trim() : n}`, next: `/devflow:start resume ${file}` })
+      out.push({ time: mtimeMs, head: `handoff in the temp folder · ${day(mtimeMs)} · ${h ? h[1].trim() : n}`, next: `/devflow:continue resume ${file}` })
     } catch {}
   }
   const linked = new Set(flows.filter(f => f.tickets).map(f => path.resolve(root, f.tickets)))
@@ -332,7 +332,7 @@ function untracked (flows) {
     const t = !linked.has(dir) && ticketFiles(dir)
     if (!t || !t.open.length) continue
     const time = Math.max(...t.all.map(f => fs.statSync(f).mtimeMs))
-    out.push({ time, head: `tickets · ${day(time)} · ${e.name}: ${t.open.length} of ${t.all.length} open`, next: `/devflow:start ticket ${rel((t.ready[0] || t.open[0]))}` })
+    out.push({ time, head: `tickets · ${day(time)} · ${e.name}: ${t.open.length} of ${t.all.length} open`, next: `/devflow:continue ticket ${rel((t.ready[0] || t.open[0]))}` })
   }
   return out.sort((a, b) => b.time - a.time)
 }
@@ -399,12 +399,12 @@ function reminder () {
   const titles = found.active.slice(0, 3).map(f => f.title)
   const more = n - titles.length
   const list = titles.length ? ` (${titles.join(', ')}${more ? `, ${more} more` : ''})` : ''
-  const line = `devflow: ${n} unfinished flow${n === 1 ? '' : 's'} here${list}. Run /devflow:start to pick one up.`
+  const line = `devflow: ${n} unfinished flow${n === 1 ? '' : 's'} here${list}. Run /devflow:continue to pick one up.`
   console.log(JSON.stringify({
     systemMessage: line,
     hookSpecificOutput: {
       hookEventName: 'SessionStart',
-      additionalContext: `${line} To pick up earlier work, point the user to /devflow:start with no task; don't guess the flow or read flow folders yourself.`
+      additionalContext: `${line} To pick up earlier work, point the user to /devflow:continue; don't guess the flow or read flow folders yourself.`
     }
   }))
 }

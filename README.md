@@ -38,6 +38,12 @@ Requires Claude Code, Node 18 or later, and git.
    /devflow:start <what you want done>
    ```
 
+4. **Pick it up later**, in a fresh session:
+
+   ```
+   /devflow:continue
+   ```
+
 Installing devflow also installs two dependencies, straight from the upstream repos and kept in sync with them:
 
 - **devflow-matt**: the 20 of Matt Pocock's skills that devflow runs.
@@ -60,7 +66,7 @@ These are the only commands you need, in the order you'd use them:
 |---|---|
 | `/devflow:setup` | Once per repo, before your first `/devflow:start` there. Sets up whatever the repo is missing. |
 | `/devflow:start <task>` | Starts a flow for the task, setting the repo up first if it needs it. |
-| `/devflow:start` | Picks up unfinished work. |
+| `/devflow:continue` | Picks up unfinished work. `/devflow:start` with no task does the same. |
 | `/devflow:wrap` | Reviews the session and saves a handoff. |
 
 Once a flow is running, just talk to Claude; you don't retype `/devflow` with each message.
@@ -88,9 +94,13 @@ Once a flow is running, just talk to Claude; you don't retype `/devflow` with ea
 
 ### Picking up later
 
-Every flow is saved in the project under `.devflow/flows/` (git-ignored) with its step, tickets and last handoff. `/devflow:start` with no task lists the unfinished ones, asks which to pick up, and continues it from where it stopped; `/devflow:start <id>` skips the question. A session works on one flow and reads only its folder; run `/clear` before switching. Once a conversation starts or continues a flow, devflow reminds Claude of it with every message you send, until the flow finishes or you `/clear`. A flow that ships as a PR is marked done when the PR merges (devflow checks with `gh`), so merged work drops off the list on its own. When Claude Code starts in a project with unfinished flows, devflow says so in one line. Each run that leaves work saves a short handoff; `/devflow:wrap` writes a fuller one.
+```
+/devflow:continue
+```
 
-- A multi-session feature stops after the tickets. Run `/devflow:start` in a fresh session for each one; it picks the next open ticket.
+Every flow is saved in the project under `.devflow/flows/` (git-ignored) with its step, tickets and last handoff. `/devflow:continue` lists the unfinished ones, asks which to pick up, and continues it from where it stopped; `/devflow:continue <id>` skips the question. `/devflow:start` with no task does the same. A session works on one flow and reads only its folder; run `/clear` before switching. Once a conversation starts or continues a flow, devflow reminds Claude of it with every message you send, until the flow finishes or you `/clear`. A flow that ships as a PR is marked done when the PR merges (devflow checks with `gh`), so merged work drops off the list on its own. When Claude Code starts in a project with unfinished flows, devflow says so in one line. Each run that leaves work saves a short handoff; `/devflow:wrap` writes a fuller one.
+
+- A multi-session feature stops after the tickets. Run `/devflow:continue` in a fresh session for each one; it picks the next open ticket.
 - A big job merges grilling-only tickets into one session, shows the remaining tickets after each one it finishes, and ends each session with a handoff saved in its flow folder.
 - After a session that went sideways, run `/devflow:wrap`. It reviews the session (`/retro` or `/reflect`), runs `/correct` when the same mistake keeps coming back, and saves a handoff to the flow if work is unfinished.
 

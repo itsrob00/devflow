@@ -1,6 +1,6 @@
 ---
 name: start
-description: Start or continue dev work with devflow. With a task, picks a flow (feature, bug, big job, small change), runs each step's skill from Matt Pocock's skills and pstack, and proves the result, setting the repo up first if needed. With nothing, picks up unfinished work.
+description: Start dev work with devflow. Picks a flow (feature, bug, big job, small change), runs each step's skill from Matt Pocock's skills and pstack, and proves the result, setting the repo up first if needed. With nothing, picks up unfinished work like /devflow:continue.
 argument-hint: "[what you want done]"
 disable-model-invocation: true
 ---
@@ -11,7 +11,7 @@ Task: $ARGUMENTS
 
 Before anything else, see what the task is:
 
-- Nothing, a saved flow's id or number, or words asking to continue: follow `${CLAUDE_PLUGIN_ROOT}/skills/start/continue.md`; it brings you back here with `resume <id>` as the task.
+- Nothing, a saved flow's id or number, or words asking to continue: follow `${CLAUDE_PLUGIN_ROOT}/skills/continue/SKILL.md` with it as the request; it brings you back here with `resume <id>` as the task.
 - Anything else is work to do: continue below.
 
 ## Running a step's skill
@@ -79,4 +79,4 @@ Paths: <spec, map or playbook, decision log, branch>
 Settings changed: <any the user overrode, or none>
 ```
 
-Then report: the flow, the skills that ran (only those loaded with `devflow show`; list other steps as skipped, with why), what changed, the evidence (test runs, the `verify-*` run, `blast-radius`'s safety fact), and what's left for the user. If work is left, say the next session picks it up with `/clear` and `/devflow:start`. If the session hit a snag worth learning from, suggest `/devflow:wrap`; its handoff replaces the short one.
+Then report: the flow, the skills that ran (only those loaded with `devflow show`; list other steps as skipped, with why), what changed, the evidence (test runs, the `verify-*` run, `blast-radius`'s safety fact), and what's left for the user. If work is left, say the next session picks it up with `/clear` and `/devflow:continue`. If the session hit a snag worth learning from, suggest `/devflow:wrap`; its handoff replaces the short one.
