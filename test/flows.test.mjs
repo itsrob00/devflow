@@ -170,3 +170,31 @@ test('a conversation is linked to the flow its commands work on, reminded of it 
   assert.ok(!fs.existsSync(path.join(root, '.devflow', 'sessions', 's2')))
   assert.equal(hook('active', {}), '')
 })
+
+test('a flow saved with its PR is marked done when the PR merges, and stays listed while it is open or closed', () => {
+  const root = tmp()
+  const bin = path.join(root, 'bin')
+  write(path.join(bin, 'gh'), '#!/bin/sh\ncase "$3" in merged) echo MERGED;; open) echo OPEN;; closed) echo CLOSED;; *) exit 1;; esac\n')
+  fs.chmodSync(path.join(bin, 'gh'), 0o755)
+  const env = { ...process.env, TMPDIR: root, TMP: root, TEMP: root, PATH: `${bin}${path.delimiter}${process.env.PATH}` }
+  const list = () => execFileSync('node', [script, 'flows'], { cwd: root, encoding: 'utf8', env })
+
+  for (const t of ['Shipped', 'Open', 'Closed', 'Unknown', 'Tickets left']) run(root, 'flow', 'new', 'feature', t)
+  run(root, 'flow', 'set', 'shipped', 'pr=merged', 'step=8. Ship')
+  run(root, 'flow', 'set', 'open', 'pr=open')
+  run(root, 'flow', 'set', 'closed', 'pr=closed')
+  run(root, 'flow', 'set', 'unknown', 'pr=nope')
+  write(path.join(root, '.scratch', 't', 'issues', '01-a.md'), '# 01: a\n\nStatus: ready-for-agent\n')
+  run(root, 'flow', 'set', 'tickets-left', 'pr=merged', 'tickets=.scratch/t/issues')
+  assert.match(run(root, 'flow', 'show', 'shipped'), /^pr: merged$/m)
+
+  const out = list()
+  assert.match(out, /^done: shipped · Shipped \(PR merged merged\)$/m)
+  assert.doesNotMatch(out, /^\d\. shipped/m)
+  assert.match(out, /^\d\. open · .*\n {3}waiting on PR open to merge$/m)
+  assert.match(out, /^\d\. closed · .*\n {3}PR closed was closed without merging$/m)
+  assert.match(out, /^\d\. unknown · Feature · step 1\. Understand · [^\n]*$(?!\n {3})/m)
+  assert.match(out, /^\d\. tickets-left · /m)
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root, '.devflow', 'flows', 'shipped', 'state.json'), 'utf8')).status, 'done')
+  assert.doesNotMatch(list(), /shipped/)
+})
