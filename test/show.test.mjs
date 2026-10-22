@@ -20,3 +20,17 @@ test('show prints the skill with the rule for following it', () => {
   assert.match(out, /not the Skill tool/)
   assert.match(out, /body/)
 })
+
+test('doctor finds the pstack models file where /setup-pstack writes it in Claude Code, and the older one in ~/.agents', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-models-'))
+  const cfg = path.join(root, 'cfg')
+  const env = { ...process.env, HOME: root, USERPROFILE: root, CLAUDE_CONFIG_DIR: cfg }
+  const doctor = () => execFileSync('node', [script, 'doctor', 'big'], { cwd: root, env, encoding: 'utf8' })
+  const write = (file, text) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text) }
+  assert.match(doctor(), /^pstack models: not set/m)
+  write(path.join(root, '.agents', 'pstack-models.md'), 'judgment and prose: grok-4\n')
+  assert.match(doctor(), /uses Grok for judgment and prose/)
+  const rules = path.join(cfg, 'rules', 'pstack-models.md')
+  write(rules, 'judgment and prose: claude-opus\n')
+  assert.ok(doctor().includes(`pstack models: ${rules}\n`))
+})

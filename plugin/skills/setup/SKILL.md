@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Set up a repo for devflow, once per repo. Checks that Matt Pocock's skills and pstack are installed without clashing, then runs the setup steps still missing.
+description: Set up a repo for devflow, once per repo. Checks that Matt Pocock's skills and pstack are installed without clashing, then runs the setup steps still missing. /devflow:start runs it on its own when a repo isn't set up.
 disable-model-invocation: true
 ---
 
@@ -13,12 +13,12 @@ Run the setup skills below as one pass: explore everything first, ask every ques
 Run `devflow doctor`. If it ran `git init`, pass that line on.
 
 - `install` lines (a dependency was disabled or removed): show them and stop. The user runs them, restarts Claude Code, and runs `/devflow:setup` again.
-- Nothing missing: say devflow is set up here, and stop.
+- Nothing missing: say devflow is set up here, list how to change each piece later (see **6. Done**), and stop.
 
 For each piece doctor reports missing, do the exploring part of its skill now, without asking anything:
 
 - **Issue tracker:** `setup-matt-pocock-skills` step 1 (Explore).
-- **pstack models:** `setup-pstack` steps 1 and 2 (detect models, load current state). These settings are per machine, in your home folder.
+- **pstack models:** `setup-pstack` steps 1 and 2 (detect models, load current state). These settings are per machine, in `~/.claude/rules/pstack-models.md`.
 - **Verification skill:** `create-verification-skill` step 1 (interview the repo). Note anything it can't observe.
 
 ## 2. Plan
@@ -42,7 +42,7 @@ Ask every question in one `AskUserQuestion` call, recommended option first and m
 Apply the answers and show every draft in one message:
 
 - From `setup-matt-pocock-skills` step 3: the Agent skills block and each `docs/agents/*.md` file.
-- From `setup-pstack` step 3c: the role table with Claude models only (Claude Code can't run Grok), panels at their default length, and any role that needs a choice marked.
+- From `setup-pstack` steps 3b and 3c: the role table at the chosen budget with Claude models only (Claude Code can't run Grok), panels at their default length, and any role that needs a choice marked.
 - The verification skill's plan: the surface, how it'll launch and drive the app, and where evidence goes.
 
 Ask once whether to go ahead or change something. Apply changes and show only what changed.
@@ -53,9 +53,9 @@ Work through the rest without asking again, unless something fails:
 
 1. Delete any collision folders the user agreed to.
 2. `setup-matt-pocock-skills` steps 4 and 5: write the block and the docs files, and create labels if section B ran.
-3. `setup-pstack` steps 4 to 6: validate and write the settings file. Skip its step 7, the verification-skill offer.
+3. `setup-pstack` steps 4 to 6: validate and write the settings file. Skip its steps 7 and 8, the verification-skill offers: step 4 below builds the verification skill, and devflow doesn't install the formal one.
 4. `create-verification-skill` steps 2 to 5. Say first that this is the longest step: it builds, launches and drives the app once to prove the skill works.
 
 ## 6. Done
 
-Run `devflow doctor` and show a short checklist: each piece with a ✓ and the file it wrote, anything still open with why, and how to change each later (edit `docs/agents/*.md`, rerun `/setup-pstack`, `/maintain-verification-skill`). End with the next step: `/devflow:start <what you want done>`.
+Run `devflow doctor` and show a short checklist: each piece with a ✓ and the file it wrote, anything still open with why, and how to change each later (edit `docs/agents/*.md`, rerun `/setup-pstack`, `/maintain-verification-skill`). If `/devflow:start` brought you here with a task, go back to it now. Otherwise end with the next step: `/devflow:start <what you want done>`.

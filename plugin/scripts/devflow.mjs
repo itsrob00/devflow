@@ -12,14 +12,17 @@
 //   devflow flow handoff <id> <file>   move a handoff written elsewhere into the flow
 //   devflow reminder                   SessionStart hook: tells the user when there are flows to continue
 //   devflow rules                      SessionStart hook: the coding rules the settings turn on, for every session
+//   devflow track                      PostToolUse hook: links this conversation to the flow its devflow flow commands work on
+//   devflow active                     UserPromptSubmit and SessionStart hook: reminds Claude of the linked flow on every message
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { FLOWS, PACKS, SKILLS, findSkill, installedSkills, loadSettings } from './devflow-lib.mjs'
+import { fileURLToPath } from 'node:url'
+import { FLOWS, PACKS, SKILLS, claudeDir, findSkill, installedSkills, loadSettings } from './devflow-lib.mjs'
 
 // Hooks get the project folder from Claude Code; commands run from it.
-const root = (process.argv[2] === 'reminder' && process.env.CLAUDE_PROJECT_DIR) || process.cwd()
+const root = (['reminder', 'track', 'active'].includes(process.argv[2]) && process.env.CLAUDE_PROJECT_DIR) || process.cwd()
 
 function settings () {
   const s = loadSettings()
@@ -44,7 +47,8 @@ function show (name) {
 }
 
 function pstackModels () {
-  const file = path.join(os.homedir(), '.agents', 'pstack-models.md')
+  // /setup-pstack writes to ~/.claude/rules in Claude Code; older versions wrote to ~/.agents.
+  const file = [path.join(claudeDir(), 'rules', 'pstack-models.md'), path.join(os.homedir(), '.agents', 'pstack-models.md')].find(f => fs.existsSync(f))
   let text
   try { text = fs.readFileSync(file, 'utf8') } catch { return { ok: false, line: 'pstack models: not set. Run /setup-pstack (its defaults use Grok, which Claude Code can\'t run).' } }
   const roles = text.split('\n').filter(l => /^[a-z][^:#]*:/.test(l.trim()))
@@ -346,12 +350,12 @@ function reminder () {
   const titles = found.active.slice(0, 3).map(f => f.title)
   const more = n - titles.length
   const list = titles.length ? ` (${titles.join(', ')}${more ? `, ${more} more` : ''})` : ''
-  const line = `devflow: ${n} unfinished flow${n === 1 ? '' : 's'} here${list}. Run /devflow:continue to pick one up.`
+  const line = `devflow: ${n} unfinished flow${n === 1 ? '' : 's'} here${list}. Run /devflow:start to pick one up.`
   console.log(JSON.stringify({
     systemMessage: line,
     hookSpecificOutput: {
       hookEventName: 'SessionStart',
-      additionalContext: `${line} To pick up earlier work, point the user to /devflow:continue; don't guess the flow or read flow folders yourself.`
+      additionalContext: `${line} To pick up earlier work, point the user to /devflow:start with no task; don't guess the flow or read flow folders yourself.`
     }
   }))
 }
@@ -367,6 +371,67 @@ function rules () {
   }))
 }
 
+// A conversation's flow is kept in .devflow/sessions/<session id>, so the reminder needs no guessing among open flows.
+// /clear starts a new session, which leaves the old link behind.
+const SESSIONS_DIR = path.join(root, '.devflow', 'sessions')
+const SESSION = /^[A-Za-z0-9_-]+$/
+
+function hookInput () {
+  try { return JSON.parse(fs.readFileSync(0, 'utf8')) } catch { return {} }
+}
+
+function sessionFile (input) {
+  return typeof input.session_id === 'string' && SESSION.test(input.session_id) ? path.join(SESSIONS_DIR, input.session_id) : null
+}
+
+// PostToolUse hook on Bash: a devflow flow command names the flow this conversation works on.
+function track () {
+  const input = hookInput()
+  const file = sessionFile(input)
+  const cmd = input.tool_input && input.tool_input.command
+  if (!file || typeof cmd !== 'string') return
+  const m = /devflow(?:\.mjs)?["']?\s+flow\s+(new|set|show|done|handoff)\b\s*([^\s;&|]*)/.exec(cmd)
+  if (!m) return
+  const res = input.tool_response
+  const out = typeof res === 'string' ? res : (res && typeof res.stdout === 'string' ? res.stdout : '')
+  const id = m[1] === 'new' ? out.split('\t')[0].trim() : m[2].replace(/^["']|["']$/g, '')
+  const state = readState(id)
+  if (!state || state.broken) return
+  if (m[1] === 'done') {
+    let linked = ''
+    try { linked = fs.readFileSync(file, 'utf8').trim() } catch {}
+    if (linked === id) fs.rmSync(file, { force: true })
+    return
+  }
+  fs.mkdirSync(SESSIONS_DIR, { recursive: true })
+  fs.writeFileSync(file, id + '\n')
+  const old = Date.now() - 30 * 864e5
+  for (const n of fs.readdirSync(SESSIONS_DIR)) {
+    try { if (fs.statSync(path.join(SESSIONS_DIR, n)).mtimeMs < old) fs.rmSync(path.join(SESSIONS_DIR, n)) } catch {}
+  }
+}
+
+// UserPromptSubmit hook, and SessionStart after compaction: a skill's instructions arrive once, so without this a
+// plain follow-up message ("go with B") gets answered as ordinary chat and the flow is dropped.
+function active () {
+  const input = hookInput()
+  const file = sessionFile(input)
+  if (!file) return
+  let id
+  try { id = fs.readFileSync(file, 'utf8').trim() } catch { return }
+  const state = readState(id)
+  if (!state || state.broken || state.status === 'done') return
+  const skill = fileURLToPath(new URL('../skills/start/SKILL.md', import.meta.url))
+  console.log(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: input.hook_event_name === 'SessionStart' ? 'SessionStart' : 'UserPromptSubmit',
+      additionalContext: `devflow: on flow ${state.id} (${cap(state.flow)}: ${state.title}), step ${state.step}. ` +
+        `Treat this message as part of it unless it's unrelated, following the devflow start skill (devflow show per step, devflow flow set ${state.id} to save). ` +
+        `If that skill isn't in context, read ${skill} and run devflow flow show ${state.id}.`
+    }
+  }))
+}
+
 const [cmd, ...args] = process.argv.slice(2)
 if (cmd === 'settings') settings()
 else if (cmd === 'show') show(args[0])
@@ -375,6 +440,8 @@ else if (cmd === 'flows') flows()
 else if (cmd === 'flow') flow(args)
 else if (cmd === 'reminder') reminder()
 else if (cmd === 'rules') rules()
+else if (cmd === 'track') track()
+else if (cmd === 'active') active()
 else {
   console.error('usage: devflow settings | show <skill> | doctor [flow] | flows | flow new|set|show|done|handoff ...')
   process.exit(2)

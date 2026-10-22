@@ -1,15 +1,18 @@
 ---
 name: start
-description: Start dev work with devflow. Picks a flow (feature, bug, big job, small change), runs each step's skill from Matt Pocock's skills and pstack, and proves the result.
-argument-hint: "<what you want done>"
+description: Start or continue dev work with devflow. With a task, picks a flow (feature, bug, big job, small change), runs each step's skill from Matt Pocock's skills and pstack, and proves the result, setting the repo up first if needed. With nothing, picks up unfinished work.
+argument-hint: "[what you want done]"
 disable-model-invocation: true
 ---
 
 Task: $ARGUMENTS
 
-With no task, follow `${CLAUDE_PLUGIN_ROOT}/skills/continue/SKILL.md` instead; it brings you back here with `resume <id>` as the task.
-
 `devflow` means `node "${CLAUDE_PLUGIN_ROOT}/scripts/devflow.mjs"`, run from the project root.
+
+Before anything else, see what the task is:
+
+- Nothing, a saved flow's id or number, or words asking to continue: follow `${CLAUDE_PLUGIN_ROOT}/skills/start/continue.md`; it brings you back here with `resume <id>` as the task.
+- Anything else is work to do: continue below.
 
 ## Running a step's skill
 
@@ -48,7 +51,7 @@ Read the task, and the code it touches if needed. Pick one:
 
 Say the flow and why in one line, then continue; ask only when two fit equally well. Save it with `devflow flow new <flow> <short title>` and give the user the id. If a Small change grows past two files or makes you choose behavior the task didn't specify, switch to Feature with `devflow flow set <id> flow=feature` and say so.
 
-Run `devflow doctor <flow>`. If it lists missing skills, show them with its install line and stop. Mention any other NOT READY line once and continue. If it ran `git init`, pass that line on.
+Run `devflow doctor <flow>`. If it lists missing skills, show them with its install line and stop. If it says NOT READY for anything else, the repo isn't set up yet: say so in one line, follow `${CLAUDE_PLUGIN_ROOT}/skills/setup/SKILL.md`, then come back here with the same task and flow. If it ran `git init`, pass that line on.
 
 Run `devflow settings`. The user's words in this conversation override them for this run.
 
@@ -78,4 +81,4 @@ Paths: <spec, map or playbook, decision log, branch>
 Settings changed: <any the user overrode, or none>
 ```
 
-Then report: the flow, the skills that ran (only those loaded with `devflow show`; list other steps as skipped, with why), what changed, the evidence (test runs, the `verify-*` run, `blast-radius`'s safety fact), and what's left for the user. If work is left, say the next session picks it up with `/clear` and `/devflow:continue`. If the session hit a snag worth learning from, suggest `/devflow:wrap`; its handoff replaces the short one.
+Then report: the flow, the skills that ran (only those loaded with `devflow show`; list other steps as skipped, with why), what changed, the evidence (test runs, the `verify-*` run, `blast-radius`'s safety fact), and what's left for the user. If work is left, say the next session picks it up with `/clear` and `/devflow:start`. If the session hit a snag worth learning from, suggest `/devflow:wrap`; its handoff replaces the short one.
