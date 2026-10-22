@@ -12,13 +12,32 @@ devflow sorts the task into a feature, a bug, a multi-session job or a small cha
 
 Requires Claude Code, Node 18 or later, and git.
 
-```
-/plugin marketplace add itsrob00/devflow
-/plugin install devflow@devflow
-/devflow:start <what you want done>
-```
+1. **Install** the plugin, then restart Claude Code so its hooks load:
 
-If the repo is missing anything the flow needs, it runs devflow's setup before starting. Setup configures your issue tracker (`/setup-matt-pocock-skills`), pstack's models (`/setup-pstack`; its defaults use Grok, which Claude Code can't run) and a verification skill that drives your app (`/create-verification-skill`), and runs `git init` if the folder isn't a repo. It asks all its questions at once, shows every draft for one review, then does the rest without stopping. You can also run it yourself with `/devflow:setup`.
+   ```
+   /plugin marketplace add itsrob00/devflow
+   /plugin install devflow@devflow
+   ```
+
+2. **Set up the repo.** Run this once in each repo, before your first `/devflow:start` there:
+
+   ```
+   /devflow:setup
+   ```
+
+   It checks that devflow's skills are installed without clashes, then sets up what the repo is missing:
+   - your issue tracker, with `/setup-matt-pocock-skills`
+   - pstack's models, with `/setup-pstack`. Its defaults use Grok, which Claude Code can't run, so setup picks Claude models.
+   - a verification skill that drives your app to prove changes work, with `/create-verification-skill`
+   - `git init`, if the folder isn't a repo yet
+
+   It asks all its questions at once, shows every draft for one review, then does the rest without stopping. If you forget, `/devflow:start` runs setup for you when a flow needs something that's missing, but then it happens in the middle of your task.
+
+3. **Start work:**
+
+   ```
+   /devflow:start <what you want done>
+   ```
 
 Installing devflow also installs two dependencies, straight from the upstream repos and kept in sync with them:
 
@@ -36,14 +55,14 @@ Skills devflow doesn't use stay out, including pstack's `tdd` and `teach`, which
 /devflow:start rename the Settings tab to Preferences     → Small
 ```
 
-These are the only commands you need:
+These are the only commands you need, in the order you'd use them:
 
 | Run | What it does |
 |---|---|
+| `/devflow:setup` | Once per repo, before your first `/devflow:start` there. Sets up whatever the repo is missing. |
 | `/devflow:start <task>` | Starts a flow for the task, setting the repo up first if it needs it. |
 | `/devflow:start` | Picks up unfinished work. |
 | `/devflow:wrap` | Reviews the session and saves a handoff. |
-| `/devflow:setup` | Sets up whatever the repo is still missing. `/devflow:start` runs it for you when a flow needs it. |
 
 Once a flow is running, just talk to Claude; you don't retype `/devflow` with each message.
 
