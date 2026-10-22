@@ -34,3 +34,19 @@ test('doctor finds the pstack models file where /setup-pstack writes it in Claud
   write(rules, 'judgment and prose: claude-opus\n')
   assert.ok(doctor().includes(`pstack models: ${rules}\n`))
 })
+
+test('pstack-models writes Claude models once, and swaps Grok out of an existing file', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-pstack-'))
+  const cfg = path.join(root, 'cfg')
+  const env = { ...process.env, HOME: root, USERPROFILE: root, CLAUDE_CONFIG_DIR: cfg }
+  const run = (...a) => execFileSync('node', [script, ...a], { cwd: root, env, encoding: 'utf8' })
+  const rules = path.join(cfg, 'rules', 'pstack-models.md')
+  assert.match(run('pstack-models'), /at the large budget with Opus/)
+  assert.match(fs.readFileSync(rules, 'utf8'), /^arena runners: claude-opus-5-5-xhigh, claude-opus-5-5-xhigh$/m)
+  assert.doesNotMatch(fs.readFileSync(rules, 'utf8'), /grok/i)
+  assert.match(run('pstack-models'), /already uses Claude models/)
+  fs.writeFileSync(rules, '# budget: medium (high)\nfeature, refactoring: grok-4.7-high-fast\n')
+  run('pstack-models')
+  assert.equal(fs.readFileSync(rules, 'utf8'), '# budget: medium (high)\nfeature, refactoring: claude-opus-5-5-xhigh\n')
+  assert.match(run('doctor', 'big'), /^pstack models: /m)
+})

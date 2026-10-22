@@ -4,6 +4,7 @@
 //   devflow find <skill>...            the SKILL.md devflow runs for each skill, or MISSING
 //   devflow show <skill>               print that SKILL.md, with its folder for resolving relative links
 //   devflow doctor [flow]              what is installed and set up, for one flow or all of them; runs git init if the folder isn't a repo
+//   devflow pstack-models              write pstack's per-machine model settings with Claude models, or swap Grok out of existing ones
 //   devflow flows                      unfinished flows to continue, newest first, then older work devflow didn't track; marks flows whose PR merged done
 //   devflow flow new <flow> <title>    save a new flow; prints its id and folder
 //   devflow flow set <id> key=value... update a saved flow: step, next, tickets, pr, title, status, flow
@@ -50,11 +51,31 @@ function pstackModels () {
   // /setup-pstack writes to ~/.claude/rules in Claude Code; older versions wrote to ~/.agents.
   const file = [path.join(claudeDir(), 'rules', 'pstack-models.md'), path.join(os.homedir(), '.agents', 'pstack-models.md')].find(f => fs.existsSync(f))
   let text
-  try { text = fs.readFileSync(file, 'utf8') } catch { return { ok: false, line: 'pstack models: not set. Run /setup-pstack (its defaults use Grok, which Claude Code can\'t run).' } }
+  try { text = fs.readFileSync(file, 'utf8') } catch { return { ok: false, line: 'pstack models: not set. Run devflow pstack-models (/setup-pstack defaults to Grok, which Claude Code can\'t run).' } }
   const roles = text.split('\n').filter(l => /^[a-z][^:#]*:/.test(l.trim()))
   const grok = roles.filter(l => /grok/i.test(l)).map(l => l.split(':')[0].trim())
-  if (grok.length) return { ok: false, line: `pstack models: ${file} uses Grok for ${grok.join(', ')}. Rerun /setup-pstack with Claude models or inherit-parent.` }
+  if (grok.length) return { ok: false, line: `pstack models: ${file} uses Grok for ${grok.join(', ')}. Run devflow pstack-models to swap in Claude models.` }
   return { ok: true, line: `pstack models: ${file}` }
+}
+
+// /setup-pstack's defaults at the large budget, with Opus where they use Grok. Writing this directly skips its model
+// detection and questions; rerun /setup-pstack to pick other models or another budget.
+const PSTACK_MODELS = `# pstack model configuration. One line per role. Delete a line to fall back to the skill default.
+# \`inherit-parent\` or \`auto\` as a value: the role runs on the parent chat model (omit the subagent \`model\`). Alias entries in a panel list still count toward its fan-out.
+# budget: large (xhigh)
+${['feature, refactoring', 'bug-fix', 'perf-issue', 'hillclimb', 'judgment and prose', 'hardest tasks', 'how explorer', 'how explainer',
+  'why investigators', 'why synthesizer', 'reflect tooling', 'reflect judgment, divergent, synthesizer', 'swarm workers'].map(r => `${r}: claude-opus-5-5-xhigh`).join('\n')}
+${['arena runners', 'arena cross-judge pool', 'architect runners', 'interrogate reviewers'].map(r => `${r}: claude-opus-5-5-xhigh, claude-opus-5-5-xhigh`).join('\n')}
+`
+
+function writePstackModels () {
+  const file = path.join(claudeDir(), 'rules', 'pstack-models.md')
+  const old = [file, path.join(os.homedir(), '.agents', 'pstack-models.md')].find(f => fs.existsSync(f))
+  const text = old ? fs.readFileSync(old, 'utf8').replace(/grok[\w.-]*/gi, 'claude-opus-5-5-xhigh') : PSTACK_MODELS
+  if (old === file && text === fs.readFileSync(file, 'utf8')) { console.log(`pstack models: ${file} already uses Claude models`); return }
+  fs.mkdirSync(path.dirname(file), { recursive: true })
+  fs.writeFileSync(file, text)
+  console.log(`pstack models: wrote ${file}${old ? ` from ${old}, with Opus in place of Grok` : ' at the large budget with Opus'}`)
 }
 
 function verifySkills () {
@@ -126,8 +147,7 @@ function doctor (only) {
   }
   if (!only || only === 'setup' || only === 'feature' || only === 'bug') {
     const v = verifySkills()
-    console.log(`verification skill: ${v.length ? v.join(', ') : 'none. Run /create-verification-skill'}`)
-    if (!v.length && (!only || only === 'setup')) ready = false
+    console.log(`verification skill: ${v.length ? v.join(', ') : 'none yet. The Prove step offers to build one.'}`)
   }
   const g = ensureGit()
   console.log(g.line)
@@ -465,6 +485,7 @@ const [cmd, ...args] = process.argv.slice(2)
 if (cmd === 'settings') settings()
 else if (cmd === 'show') show(args[0])
 else if (cmd === 'doctor') doctor(args[0])
+else if (cmd === 'pstack-models') writePstackModels()
 else if (cmd === 'flows') flows()
 else if (cmd === 'flow') flow(args)
 else if (cmd === 'reminder') reminder()
@@ -472,6 +493,6 @@ else if (cmd === 'rules') rules()
 else if (cmd === 'track') track()
 else if (cmd === 'active') active()
 else {
-  console.error('usage: devflow settings | show <skill> | doctor [flow] | flows | flow new|set|show|done|handoff ...')
+  console.error('usage: devflow settings | show <skill> | doctor [flow] | pstack-models | flows | flow new|set|show|done|handoff ...')
   process.exit(2)
 }
