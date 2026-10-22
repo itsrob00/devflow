@@ -47,7 +47,7 @@ test('ticket folders no flow points at are listed with the command that continue
   write(path.join(root, '.scratch', 'shipped', 'issues', '01-y.md'), '# 01: y\n\nStatus: resolved\n')
   const out = run(root, 'flows')
   assert.match(out, /Not saved as flows/)
-  assert.match(out, /^1\. tickets · .* old: 1 of 1 open\n {3}\/devflow:start ticket \.scratch\/old\/issues\/01-x\.md$/m)
+  assert.match(out, /^1\. tickets · .* old: 1 of 1 open\n {3}\/devflow:continue ticket \.scratch\/old\/issues\/01-x\.md$/m)
   assert.doesNotMatch(out, /shipped/)
 })
 
@@ -112,9 +112,9 @@ test('the session-start reminder names unfinished flows, and stays quiet without
   run(root, 'flow', 'new', 'small', 'Rename tab')
   run(root, 'flow', 'done', 'rename-tab')
   const out = JSON.parse(run(root, 'reminder'))
-  assert.equal(out.systemMessage, 'devflow: 1 unfinished flow here (Cart total). Run /devflow:start to pick one up.')
+  assert.equal(out.systemMessage, 'devflow: 1 unfinished flow here (Cart total). Run /devflow:continue to pick one up.')
   assert.equal(out.hookSpecificOutput.hookEventName, 'SessionStart')
-  assert.match(out.hookSpecificOutput.additionalContext, /\/devflow:start/)
+  assert.match(out.hookSpecificOutput.additionalContext, /\/devflow:continue/)
 })
 
 test('no code comments is on by default, and every session gets its rule until it is turned off', () => {
