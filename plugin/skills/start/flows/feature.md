@@ -10,5 +10,5 @@
 6. **Check.**
    - `blast-radius` on the diff since the branch point, with its safety fact proven by running code or marked unproven.
    - `interrogate` per the multi-model review setting. With **risky changes**, run it when the diff touches auth, permissions, payments, data migrations or deletion, concurrency, or a public API. Fix what it puts under "Act on".
-7. **Prove.** If the project has a `verify-*` skill (`devflow doctor feature` lists it), drive the feature with it as a user would and save the evidence. If not, say the change is unproven in the running app and suggest `/devflow:setup`.
+7. **Prove.** If the project has a `verify-*` skill (`devflow doctor feature` lists it), drive the feature with it as a user would and save the evidence. If not, ask once whether to build one now with `create-verification-skill` (it builds, launches and drives the app, so it takes a few minutes, once per repo). On yes, build it and use it; on no, say the change is unproven in the running app.
 8. **Ship.** `pr` to write the PR body, using the evidence from step 7. Pushing is the user's (see **Git** in the start skill): give them the push command, then `gh pr create --body-file <file>`, and save `devflow flow set <id> pr=<branch> step="8. Ship"`. The flow is marked done when that PR merges.

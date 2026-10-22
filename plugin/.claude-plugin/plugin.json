@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "devflow",
-  "version": "1.1.4",
+  "version": "1.1.6",
   "description": "Rob's Claude Code workflow on top of Matt Pocock's skills and pstack: picks the right flow for a task (feature, bug, big job, small change), runs each step's skill, and proves the result. Includes a git safety hook.",
   "author": {
     "name": "Rob"
