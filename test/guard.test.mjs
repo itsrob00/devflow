@@ -1,6 +1,11 @@
 // node --test
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { check } from '../plugin/scripts/devflow-guard.mjs'
 
 const blocked = [
@@ -36,4 +41,22 @@ test('blocks commands that lose work or leave the machine', () => {
 
 test('allows everything else', () => {
   for (const c of allowed) assert.equal(check(c), null, `should allow: ${JSON.stringify(c)}`)
+})
+
+test('the hook only blocks in a conversation on an unfinished flow', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-guard-'))
+  const guard = fileURLToPath(new URL('../plugin/scripts/devflow-guard.mjs', import.meta.url))
+  const env = { ...process.env, CLAUDE_PROJECT_DIR: root, CLAUDE_CONFIG_DIR: root }
+  delete env.DEVFLOW_GUARD
+  const push = session => execFileSync('node', [guard], { env, encoding: 'utf8', input: JSON.stringify({ session_id: session, cwd: root, tool_name: 'Bash', tool_input: { command: 'git push' } }) })
+  const write = (file, text) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text) }
+
+  assert.equal(push('s1'), '')
+  write(path.join(root, '.devflow', 'flows', 'cart', 'state.json'), JSON.stringify({ flow: 'feature', status: 'active' }))
+  assert.equal(push('s1'), '')
+  write(path.join(root, '.devflow', 'sessions', 's1'), 'cart\n')
+  assert.match(push('s1'), /"permissionDecision":"deny"/)
+  assert.equal(push('s2'), '')
+  write(path.join(root, '.devflow', 'flows', 'cart', 'state.json'), JSON.stringify({ flow: 'feature', status: 'done' }))
+  assert.equal(push('s1'), '')
 })

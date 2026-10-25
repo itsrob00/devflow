@@ -3,6 +3,7 @@
 // Blocked: push, reset --hard, clean -f, branch -D, and discarding the whole working tree
 // (checkout or restore of `.`, checkout -f, switch --discard-changes).
 // Flags are checked wherever they appear, and compound commands, `bash -c`, `$(...)` and here-docs fed to a shell piece by piece.
+// It only acts in a conversation linked to an unfinished devflow flow; everywhere else git runs as usual.
 // Turn it off with the git_guard plugin option, or DEVFLOW_GUARD=off in the environment.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -213,6 +214,19 @@ export function check (command, depth = 0) {
 
 // ---------- main ----------
 
+// The flow a conversation works on is linked in .devflow/sessions/<session id> by devflow's track hook.
+export function inFlow (root, sessionId) {
+  if (typeof sessionId !== 'string' || !/^[A-Za-z0-9_-]+$/.test(sessionId)) return false
+  try {
+    const id = fs.readFileSync(path.join(root, '.devflow', 'sessions', sessionId), 'utf8').trim()
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) return false
+    const state = JSON.parse(fs.readFileSync(path.join(root, '.devflow', 'flows', id, 'state.json'), 'utf8'))
+    return state?.status !== 'done'
+  } catch {
+    return false
+  }
+}
+
 function main () {
   if (!loadSettings().git_guard) return
   let input
@@ -223,6 +237,7 @@ function main () {
   }
   const command = input?.tool_input?.command
   if (input?.tool_name !== 'Bash' || typeof command !== 'string') return
+  if (!inFlow(process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd(), input.session_id)) return
   const r = check(command)
   if (r) deny(r)
 }
