@@ -116,9 +116,11 @@ Set these in `/plugin`, under devflow, Configure options. Saying otherwise in yo
 | Small changes | poteto-mode | `poteto-mode`, which uses far more tokens, or `direct`: make the change, run the closest tests, show the diff. |
 | Session review | reflect | Which review `/devflow:wrap` runs: `retro` or `reflect`. |
 
+Outside `/plugin`, put the same settings in `~/.config/devflow/settings.json` for every project, or in `.devflow/settings.json` at the project's git root for one project. Each file is a JSON object with any of the keys `git_guard` and `no_comments` (`true` or `false`), `adversarial_review` (`risky changes`, `always` or `never`), `small_changes` (`poteto-mode` or `direct`) and `after_session` (`retro` or `reflect`), for example `{"small_changes": "direct"}`. The project file overrides the user file, except that it can't turn the git guard off, so a cloned repo can't disarm it. In Claude Code the `/plugin` options override both. A missing or unreadable file, or a value devflow doesn't know, is skipped. `devflow settings` shows the result.
+
 ## Contributing
 
-The plugin itself lives in `plugin/`, which is all that installing it copies. The tests stay at the repo root: `node --test` runs them for the git guard, the helper CLI and its hooks. Add a guard case for any command it should block or let through.
+The plugin itself lives in `plugin/`, which is all that installing it copies. The tests stay at the repo root: `node --test` runs them for the git guard, the helper CLI and its hooks, and CI runs it on Ubuntu and Windows for every PR and push to main. Add a guard case for any command it should block or let through.
 
 ## Credits
 
