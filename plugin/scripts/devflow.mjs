@@ -20,13 +20,15 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { FLOWS, PACKS, SKILLS, claudeDir, findSkill, installedSkills, loadSettings } from './devflow-lib.mjs'
+import { FLOWS, PACKS, SKILLS, claudeDir, findSkill, installedSkills, loadSettings, projectRoot } from './devflow-lib.mjs'
 
-// Hooks get the project folder from Claude Code; commands run from it.
-const root = (['reminder', 'track', 'active'].includes(process.argv[2]) && process.env.CLAUDE_PROJECT_DIR) || process.cwd()
+// Hooks read their payload once here; the project folder comes from it, or from where the command runs.
+const HOOKS = ['reminder', 'rules', 'track', 'active']
+const input = HOOKS.includes(process.argv[2]) ? hookInput() : null
+const root = projectRoot(input)
 
 function settings () {
-  const s = loadSettings()
+  const s = loadSettings(root)
   console.log(`git guard: ${s.git_guard ? 'on' : 'off'}`)
   console.log(`no code comments: ${s.no_comments ? 'on' : 'off'}`)
   console.log(`multi-model review: ${s.adversarial_review}`)
@@ -120,7 +122,7 @@ function ensureGit () {
 
 function doctor (only) {
   if (only && !FLOWS[only]) { console.error(`unknown flow ${only}; use one of ${Object.keys(FLOWS).join(', ')}`); process.exit(2) }
-  const s = loadSettings()
+  const s = loadSettings(root)
   const all = installedSkills(root)
   let ready = true
   const flows = only ? [only] : Object.keys(FLOWS)
@@ -427,7 +429,7 @@ function reminder () {
 
 // SessionStart hook, also after compaction, so the rule outlives the summary.
 function rules () {
-  if (!loadSettings().no_comments) return
+  if (!loadSettings(root).no_comments) return
   console.log(JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'SessionStart',
@@ -442,7 +444,8 @@ const SESSIONS_DIR = path.join(root, '.devflow', 'sessions')
 const SESSION = /^[A-Za-z0-9_-]+$/
 
 function hookInput () {
-  try { return JSON.parse(fs.readFileSync(0, 'utf8')) } catch { return {} }
+  if (process.stdin.isTTY) return {}
+  try { return JSON.parse(fs.readFileSync(0, 'utf8')) || {} } catch { return {} }
 }
 
 function sessionFile (input) {
@@ -451,7 +454,6 @@ function sessionFile (input) {
 
 // PostToolUse hook on Bash: a devflow flow command names the flow this conversation works on.
 function track () {
-  const input = hookInput()
   const file = sessionFile(input)
   const cmd = input.tool_input && input.tool_input.command
   if (!file || typeof cmd !== 'string') return
@@ -479,7 +481,6 @@ function track () {
 // UserPromptSubmit hook, and SessionStart after compaction: a skill's instructions arrive once, so without this a
 // plain follow-up message ("go with B") gets answered as ordinary chat and the flow is dropped.
 function active () {
-  const input = hookInput()
   const file = sessionFile(input)
   if (!file) return
   let id
