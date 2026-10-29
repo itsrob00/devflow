@@ -8,7 +8,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadSettings } from './devflow-lib.mjs'
+import { loadSettings, projectRoot } from './devflow-lib.mjs'
 
 function deny (reason) {
   process.stdout.write(JSON.stringify({
@@ -228,16 +228,17 @@ export function inFlow (root, sessionId) {
 }
 
 function main () {
-  if (!loadSettings().git_guard) return
   let input
   try {
     input = JSON.parse(fs.readFileSync(0, 'utf8'))
   } catch {
     return
   }
+  const root = projectRoot(input || {})
+  if (!loadSettings(root).git_guard) return
   const command = input?.tool_input?.command
   if (input?.tool_name !== 'Bash' || typeof command !== 'string') return
-  if (!inFlow(process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd(), input.session_id)) return
+  if (!inFlow(root, input?.session_id)) return
   const r = check(command)
   if (r) deny(r)
 }

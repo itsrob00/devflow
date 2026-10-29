@@ -120,7 +120,7 @@ test('the session-start reminder names unfinished flows, and stays quiet without
 test('no code comments is on by default, and every session gets its rule until it is turned off', () => {
   const root = tmp()
   const cfg = path.join(root, 'cfg')
-  const env = v => ({ ...process.env, CLAUDE_CONFIG_DIR: cfg, CLAUDE_PLUGIN_OPTION_NO_COMMENTS: v })
+  const env = v => ({ ...process.env, HOME: root, USERPROFILE: root, CLAUDE_CONFIG_DIR: cfg, CLAUDE_PLUGIN_OPTION_NO_COMMENTS: v })
   const rules = v => execFileSync('node', [script, 'rules'], { cwd: root, encoding: 'utf8', env: env(v) })
   const out = JSON.parse(rules(''))
   assert.equal(out.hookSpecificOutput.hookEventName, 'SessionStart')
@@ -171,7 +171,7 @@ test('a conversation is linked to the flow its commands work on, reminded of it 
   assert.equal(hook('active', {}), '')
 })
 
-test('a flow saved with its PR is marked done when the PR merges, and stays listed while it is open or closed', () => {
+test('a flow saved with its PR is marked done when the PR merges, and stays listed while it is open or closed', { skip: process.platform === 'win32' && 'the gh stub is a sh script, which Windows cannot run' }, () => {
   const root = tmp()
   const bin = path.join(root, 'bin')
   write(path.join(bin, 'gh'), '#!/bin/sh\ncase "$3" in merged) echo MERGED;; open) echo OPEN;; closed) echo CLOSED;; *) exit 1;; esac\n')

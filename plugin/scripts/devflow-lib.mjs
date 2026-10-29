@@ -38,12 +38,38 @@ export function pluginOptions () {
   return { ...opts, ...(key ? all[key].options || {} : {}) }
 }
 
-export function loadSettings () {
+// The project a command or hook works on. A host that names the folder is trusted as-is; otherwise
+// walk up from where we are to the git root, so a run from a subfolder finds the same project.
+export function projectRoot (hook) {
+  if (hook && process.env.CLAUDE_PROJECT_DIR) return path.resolve(process.env.CLAUDE_PROJECT_DIR)
+  const start = path.resolve((hook && typeof hook.cwd === 'string' && hook.cwd) || process.cwd())
+  for (let dir = start; ; dir = path.dirname(dir)) {
+    if (fs.existsSync(path.join(dir, '.git'))) return dir
+    if (path.dirname(dir) === dir) return start
+  }
+}
+
+function settingsFile (file) {
+  const s = readJson(file)
+  return s && typeof s === 'object' && !Array.isArray(s) ? s : {}
+}
+
+export function loadSettings (root) {
   const s = { ...DEFAULTS }
-  for (const [k, v] of Object.entries(pluginOptions())) {
-    if (!(k in DEFAULTS) || v === '' || v === null || v === undefined) continue
-    if (typeof DEFAULTS[k] === 'boolean') s[k] = !(v === false || v === 'false')
-    else if (CHOICES[k].includes(v)) s[k] = v
+  const project = settingsFile(path.join(root, '.devflow', 'settings.json'))
+  // A repo carries its own settings, but can't turn the git guard off: cloning one would disarm it.
+  delete project.git_guard
+  const layers = [
+    settingsFile(path.join(os.homedir(), '.config', 'devflow', 'settings.json')),
+    project,
+    pluginOptions()
+  ]
+  for (const layer of layers) {
+    for (const [k, v] of Object.entries(layer)) {
+      if (!(k in DEFAULTS) || v === '' || v === null || v === undefined) continue
+      if (typeof DEFAULTS[k] === 'boolean') s[k] = !(v === false || v === 'false')
+      else if (CHOICES[k].includes(v)) s[k] = v
+    }
   }
   if (process.env.DEVFLOW_GUARD === 'off') s.git_guard = false
   return s
