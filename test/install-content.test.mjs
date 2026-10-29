@@ -58,7 +58,7 @@ for (const agent of AGENTS) {
     }
     for (const entry of ['start', 'continue', 'wrap']) {
       const text = fs.readFileSync(path.join(dir, `devflow-${entry}`, 'SKILL.md'), 'utf8')
-      assert.match(text, /^---\nname: devflow-/)
+      assert.match(text, /^---\r?\nname: devflow-/)
       assert.match(text, /^(The task is in|Take it from|Take the request from) the user's message/m, entry)
     }
   })
