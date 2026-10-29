@@ -1,0 +1,56 @@
+import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
+
+const SCRIPTS = __SCRIPTS__
+const SHELL = __SHELL__
+const GUARD_DOWN = "devflow git guard: devflow's guard couldn't run, so this command is blocked because it mentions git. Give the user the exact command to run, and tell them to check the devflow install (devflow install --agent pi)."
+let started = false
+
+function locate (cwd, script) {
+  for (let dir = path.resolve(cwd); ; dir = path.dirname(dir)) {
+    const file = path.resolve(dir, SCRIPTS, script)
+    if (fs.existsSync(file) || path.dirname(dir) === dir) return file
+  }
+}
+
+function run (script, args, ctx, event, extra = {}) {
+  const payload = { session_id: ctx.sessionManager.getSessionId(), cwd: ctx.cwd, hook_event_name: event, ...extra }
+  const r = spawnSync('node', [locate(ctx.cwd, script), ...args, '--agent', 'pi'], { input: JSON.stringify(payload), encoding: 'utf8' })
+  if (r.error || r.status !== 0) return { failed: true, reply: {} }
+  if (!r.stdout) return { failed: false, reply: {} }
+  try { return { failed: false, reply: JSON.parse(r.stdout) || {} } } catch { return { failed: true, reply: {} } }
+}
+
+export default function (pi) {
+  pi.on('session_start', () => {
+    started = false
+  })
+
+  pi.on('tool_call', (event, ctx) => {
+    if (!SHELL.includes(event.toolName)) return
+    const { failed, reply } = run('devflow-guard.mjs', [], ctx, 'tool_call', { tool_name: event.toolName, tool_input: event.input })
+    if (failed) return /\bgit\b/i.test(String(event.input?.command ?? '')) ? { block: true, reason: GUARD_DOWN } : undefined
+    if (reply.block) return { block: true, reason: reply.reason }
+  })
+
+  pi.on('tool_result', (event, ctx) => {
+    if (!SHELL.includes(event.toolName)) return
+    const text = (event.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n')
+    run('devflow.mjs', ['track'], ctx, 'tool_result', { tool_name: event.toolName, tool_input: event.input, tool_response: text })
+  })
+
+  pi.on('before_agent_start', (event, ctx) => {
+    const names = started ? ['active'] : ['reminder', 'rules', 'active']
+    started = true
+    const parts = []
+    for (const name of names) {
+      const { reply } = run('devflow.mjs', [name], ctx, 'before_agent_start')
+      if (reply.additionalContext) parts.push(reply.additionalContext)
+      if (reply.systemMessage) {
+        try { ctx.ui?.notify?.(reply.systemMessage, 'info') } catch {}
+      }
+    }
+    if (parts.length) return { message: { customType: 'devflow', content: parts.join('\n\n'), display: false } }
+  })
+}
