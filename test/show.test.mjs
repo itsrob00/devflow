@@ -5,9 +5,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
-
-const script = fileURLToPath(new URL('../plugin/scripts/devflow.mjs', import.meta.url))
+import { devflow as script } from './helpers.mjs'
 
 test('show prints the skill with the rule for following it', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-show-'))
@@ -16,8 +14,8 @@ test('show prints the skill with the rule for following it', () => {
   fs.writeFileSync(path.join(dir, 'SKILL.md'), '---\nname: how\n---\nbody\n')
   const env = { ...process.env, HOME: root, USERPROFILE: root, CLAUDE_CONFIG_DIR: path.join(root, 'cfg') }
   const out = execFileSync('node', [script, 'show', 'how'], { cwd: root, env, encoding: 'utf8' })
-  assert.match(out, /follow it as if the user typed \/how/)
-  assert.match(out, /not the Skill tool/)
+  assert.match(out, /follow it as if the user had asked for the how skill/)
+  assert.match(out, /not with a skill-loading tool \(Claude Code's Skill tool, for one\)/)
   assert.match(out, /body/)
 })
 
