@@ -5,13 +5,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
+import { devflow as script, guard, write } from './helpers.mjs'
 
-const script = fileURLToPath(new URL('../plugin/scripts/devflow.mjs', import.meta.url))
-const write = (file, text) => {
-  fs.mkdirSync(path.dirname(file), { recursive: true })
-  fs.writeFileSync(file, text)
-}
 const bare = home => {
   const env = {}
   for (const [k, v] of Object.entries(process.env)) if (!/^CLAUDE/.test(k) && k !== 'DEVFLOW_GUARD') env[k] = v
@@ -94,7 +89,6 @@ test('a repo cannot turn the git guard off, but the user file can, and the guard
   const sub = path.join(project, 'src')
   fs.mkdirSync(sub, { recursive: true })
   execFileSync('git', ['init', '-q'], { cwd: project })
-  const guard = fileURLToPath(new URL('../plugin/scripts/devflow-guard.mjs', import.meta.url))
   for (const root of [project, home]) {
     write(path.join(root, '.devflow', 'sessions', 's1'), 'cart\n')
     write(path.join(root, '.devflow', 'flows', 'cart', 'state.json'), JSON.stringify({ status: 'active' }))

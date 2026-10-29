@@ -5,15 +5,10 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
+import { devflow as script, write } from './helpers.mjs'
 
-const script = fileURLToPath(new URL('../plugin/scripts/devflow.mjs', import.meta.url))
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-flows-'))
 const run = (root, ...args) => execFileSync('node', [script, ...args], { cwd: root, encoding: 'utf8', env: { ...process.env, TMPDIR: root, TMP: root, TEMP: root } })
-const write = (file, text) => {
-  fs.mkdirSync(path.dirname(file), { recursive: true })
-  fs.writeFileSync(file, text)
-}
 
 test('a saved flow lists with its step and next ticket, and show reads only that flow', () => {
   const root = tmp()
@@ -47,7 +42,7 @@ test('ticket folders no flow points at are listed with the command that continue
   write(path.join(root, '.scratch', 'shipped', 'issues', '01-y.md'), '# 01: y\n\nStatus: resolved\n')
   const out = run(root, 'flows')
   assert.match(out, /Not saved as flows/)
-  assert.match(out, /^1\. tickets · .* old: 1 of 1 open\n {3}\/devflow:continue ticket \.scratch\/old\/issues\/01-x\.md$/m)
+  assert.match(out, /^1\. tickets · .* old: 1 of 1 open\n {3}continue with: ticket \.scratch\/old\/issues\/01-x\.md$/m)
   assert.doesNotMatch(out, /shipped/)
 })
 
@@ -112,9 +107,9 @@ test('the session-start reminder names unfinished flows, and stays quiet without
   run(root, 'flow', 'new', 'small', 'Rename tab')
   run(root, 'flow', 'done', 'rename-tab')
   const out = JSON.parse(run(root, 'reminder'))
-  assert.equal(out.systemMessage, 'devflow: 1 unfinished flow here (Cart total). Run /devflow:continue to pick one up.')
+  assert.equal(out.systemMessage, 'devflow: 1 unfinished flow here (Cart total). Run devflow\'s continue skill to pick one up (/devflow:continue in Claude Code).')
   assert.equal(out.hookSpecificOutput.hookEventName, 'SessionStart')
-  assert.match(out.hookSpecificOutput.additionalContext, /\/devflow:continue/)
+  assert.match(out.hookSpecificOutput.additionalContext, /point the user to devflow's continue skill/)
 })
 
 test('no code comments is on by default, and every session gets its rule until it is turned off', () => {
