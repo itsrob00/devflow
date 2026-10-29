@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ADAPTERS } from './devflow-adapters.mjs'
 
 export const DEFAULTS = {
   git_guard: true,
@@ -15,7 +16,128 @@ export const DEFAULTS = {
 const CHOICES = {
   adversarial_review: ['risky changes', 'always', 'never'],
   small_changes: ['poteto-mode', 'direct'],
-  after_session: ['retro', 'reflect']
+  after_session: ['retro', 'reflect', 'handoff']
+}
+
+const ALL_FAMILIES = ['claude', 'gpt', 'gemini', 'grok']
+
+export const CLAUDE_CODE = 'claude-code'
+
+const claudeStyle = {
+  shell: ['Bash'],
+  payload: input => input,
+  deny: text => ({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: text } }),
+  allow: null,
+  context: (event, additionalContext, systemMessage) => ({
+    ...(systemMessage ? { systemMessage } : {}),
+    hookSpecificOutput: { hookEventName: event, additionalContext }
+  })
+}
+
+function jsonOrNull (text) {
+  try { return JSON.parse(text) } catch { return null }
+}
+
+export const AGENTS = {
+  [CLAUDE_CODE]: {
+    ...claudeStyle,
+    label: 'Claude Code',
+    transcripts: true,
+    otherFamilies: false,
+    families: ['claude'],
+    closest: { strong: 'claude-opus-5-5', fast: 'claude-sonnet-5-5' },
+    pstackFile: ['.claude', 'rules', 'pstack-models.md']
+  },
+  codex: {
+    ...claudeStyle,
+    label: 'Codex CLI',
+    transcripts: true,
+    otherFamilies: false,
+    families: ['gpt'],
+    closest: { strong: 'gpt-6-astra', fast: 'gpt-6.1-terra' },
+    pstackFile: ['.agents', 'pstack-models.md']
+  },
+  cursor: {
+    label: 'Cursor',
+    transcripts: true,
+    otherFamilies: true,
+    families: [...ALL_FAMILIES, 'composer'],
+    closest: { strong: 'claude-opus-5-5', fast: 'claude-sonnet-5-5' },
+    pstackFile: ['.cursor', 'rules', 'pstack-models.mdc'],
+    shell: ['Bash'],
+    payload (input) {
+      const out = { ...input }
+      if (!out.session_id) out.session_id = out.conversation_id
+      if (!out.cwd && Array.isArray(out.workspace_roots)) out.cwd = out.workspace_roots[0]
+      if (out.tool_name === 'Shell') out.tool_name = 'Bash'
+      if (!out.tool_response && typeof out.tool_output === 'string') out.tool_response = jsonOrNull(out.tool_output) ?? out.tool_output
+      return out
+    },
+    deny: text => ({ permission: 'deny', user_message: text, agent_message: text }),
+    allow: { permission: 'allow' },
+    context: (event, additionalContext) => ({ additional_context: additionalContext })
+  },
+  opencode: {
+    ...claudeStyle,
+    label: 'OpenCode',
+    transcripts: false,
+    otherFamilies: true,
+    families: ALL_FAMILIES,
+    closest: { strong: 'claude-opus-5-5', fast: 'claude-sonnet-5-5' },
+    pstackFile: ['.agents', 'pstack-models.md']
+  },
+  gemini: {
+    ...claudeStyle,
+    label: 'Gemini CLI',
+    transcripts: false,
+    otherFamilies: false,
+    families: ['gemini'],
+    closest: { strong: 'gemini-3-pro-preview', fast: 'gemini-3-flash-preview' },
+    pstackFile: ['.agents', 'pstack-models.md'],
+    shell: ['run_shell_command'],
+    deny: text => ({ decision: 'deny', reason: text }),
+    context: (event, additionalContext, systemMessage) => claudeStyle.context(event === 'UserPromptSubmit' ? 'BeforeAgent' : event, additionalContext, systemMessage)
+  },
+  pi: {
+    ...claudeStyle,
+    label: 'Pi',
+    transcripts: true,
+    otherFamilies: false,
+    families: ALL_FAMILIES,
+    closest: { strong: 'claude-opus-5-5', fast: 'claude-sonnet-5-5' },
+    pstackFile: ['.agents', 'pstack-models.md'],
+    shell: ['bash', 'powershell'],
+    deny: text => ({ block: true, reason: text }),
+    context: (event, additionalContext, systemMessage) => ({ additionalContext, ...(systemMessage ? { systemMessage } : {}) })
+  }
+}
+
+export function agentFor (name) {
+  return AGENTS[name] ?? AGENTS[CLAUDE_CODE]
+}
+
+export function currentAgent () {
+  const named = process.env.DEVFLOW_AGENT
+  if (named && Object.hasOwn(AGENTS, named)) return named
+  const here = path.dirname(fileURLToPath(import.meta.url))
+  const agent = readJson(path.join(path.dirname(here), 'agent.json'))?.agent
+  return typeof agent === 'string' && Object.hasOwn(AGENTS, agent) ? agent : CLAUDE_CODE
+}
+
+export function modelFamily (model) {
+  const id = model.toLowerCase().split('/').pop()
+  if (id === 'auto' || id === 'inherit-parent') return 'alias'
+  if (/^(cursor-)?grok/.test(id)) return 'grok'
+  if (/^composer/.test(id)) return 'composer'
+  if (/^claude/.test(id)) return 'claude'
+  if (/^(gpt|o\d|codex)/.test(id)) return 'gpt'
+  if (/^gemini/.test(id)) return 'gemini'
+  return 'other'
+}
+
+export function hookAgent (argv = process.argv) {
+  const i = argv.indexOf('--agent')
+  return i >= 0 && argv[i + 1] ? argv[i + 1] : CLAUDE_CODE
 }
 
 export function claudeDir () {
@@ -49,20 +171,26 @@ export function projectRoot (hook) {
   }
 }
 
+export function hookPayload (input, name) {
+  return input && typeof input === 'object' ? agentFor(name).payload(input) : input
+}
+
 function settingsFile (file) {
   const s = readJson(file)
   return s && typeof s === 'object' && !Array.isArray(s) ? s : {}
 }
 
 export function loadSettings (root) {
+  const agent = currentAgent()
   const s = { ...DEFAULTS }
+  if (!AGENTS[agent].transcripts) s.after_session = 'handoff'
   const project = settingsFile(path.join(root, '.devflow', 'settings.json'))
   // A repo carries its own settings, but can't turn the git guard off: cloning one would disarm it.
   delete project.git_guard
   const layers = [
     settingsFile(path.join(os.homedir(), '.config', 'devflow', 'settings.json')),
     project,
-    pluginOptions()
+    agent === CLAUDE_CODE ? pluginOptions() : {}
   ]
   for (const layer of layers) {
     for (const [k, v] of Object.entries(layer)) {
@@ -83,11 +211,22 @@ const PSTACK = 'pstack'
 export const PACKS = {
   [MATT]: {
     title: "Matt Pocock's skills (devflow-matt)",
-    install: '/plugin install devflow-matt@devflow'
+    install: '/plugin install devflow-matt@devflow',
+    source: 'mattpocock/skills',
+    extra: []
   },
   [PSTACK]: {
     title: 'pstack (devflow-pstack)',
-    install: '/plugin install devflow-pstack@devflow'
+    install: '/plugin install devflow-pstack@devflow',
+    source: 'backnotprop/pstack',
+    extra: ['swarm', 'no-comments', 'benchmark-checklist', 'technical-writing', 'principle-attack-the-premise', 'principle-boundary-discipline',
+      'principle-build-the-lever', 'principle-encode-lessons-in-structure', 'principle-exhaust-the-design-space', 'principle-experience-first',
+      'principle-explain-the-number', 'principle-fix-root-causes', 'principle-foundational-thinking', 'principle-guard-the-context-window',
+      'principle-laziness-protocol', 'principle-make-operations-idempotent', 'principle-migrate-callers-then-delete-legacy-apis',
+      'principle-minimize-reader-load', 'principle-model-the-domain', 'principle-never-block-on-the-human', 'principle-outcome-oriented-execution',
+      'principle-prove-it-works', 'principle-redesign-from-first-principles', 'principle-separate-before-serializing-shared-state',
+      'principle-sequence-verifiable-units', 'principle-subtract-before-you-add', 'principle-test-behavior-not-implementation',
+      'principle-type-system-discipline']
   }
 }
 
@@ -128,6 +267,14 @@ export const SKILLS = {
   correct: PSTACK,
   'create-verification-skill': PSTACK,
   'maintain-verification-skill': PSTACK
+}
+
+export function installAdvice (pack, agent) {
+  return agent === CLAUDE_CODE ? PACKS[pack].install : `npx github:itsrob00/devflow install --agent ${agent}`
+}
+
+export function packSkills (pack) {
+  return [...Object.keys(SKILLS).filter(n => SKILLS[n] === pack), ...PACKS[pack].extra]
 }
 
 export const FLOWS = {
@@ -192,32 +339,37 @@ function pluginRoots () {
 // Every installed SKILL.md: { name, pack, file, where }.
 export function installedSkills (projectRoot = process.cwd()) {
   const found = []
-  const add = (file, where, plugin) => {
+  const add = (file, where, plugin, lock) => {
     let text
     try { text = fs.readFileSync(file, 'utf8') } catch { return }
     const name = frontmatterName(text) || path.basename(path.dirname(file))
     let pack = FINGERPRINT.find(([, re]) => re.test(text))?.[0]
+    if (!pack && lock) pack = packOfSource(lock[name]?.source)
     if (!pack && (plugin === 'devflow-matt' || plugin === 'mattpocock-skills')) pack = MATT
     if (!pack && (plugin === 'devflow-pstack' || plugin === 'pstack')) pack = PSTACK
     if (!pack) pack = plugin && plugin !== 'devflow' ? plugin : SKILLS[name] || 'other'
     found.push({ name, pack, file, where: plugin ? `plugin ${plugin}` : where })
   }
   const home = os.homedir()
-  const dirs = [
-    [path.join(projectRoot, '.claude', 'skills'), 'project'],
-    [path.join(projectRoot, '.agents', 'skills'), 'project'],
-    [path.join(claudeDir(), 'skills'), 'user'],
-    [path.join(home, '.agents', 'skills'), 'user']
-  ]
+  const folders = [...new Set(Object.values(ADAPTERS).flatMap(a => a.reads))].filter(r => r !== '.agents/skills')
+  const dirs = []
+  for (const d of ancestors(projectRoot)) {
+    dirs.push([path.join(d, '.claude', 'skills'), 'project'])
+    dirs.push([path.join(d, '.agents', 'skills'), 'project', readLock(path.join(d, 'skills-lock.json'))])
+    for (const rel of folders) dirs.push([path.join(d, ...rel.split('/')), 'project'])
+  }
+  dirs.push([path.join(claudeDir(), 'skills'), 'user'])
+  dirs.push([path.join(home, '.agents', 'skills'), 'user', readLock(path.join(home, '.agents', '.skill-lock.json'))])
+  for (const rel of folders) dirs.push([path.join(home, ...rel.split('/')), 'user'])
   const seen = new Set()
-  for (const [dir, where] of dirs) {
+  for (const [dir, where, lock] of dirs) {
     const files = []
     walk(dir, 3, files)
     for (const f of files) {
       const real = safeReal(f)
       if (seen.has(real)) continue
       seen.add(real)
-      add(f, where)
+      add(f, where, undefined, lock)
     }
   }
   for (const { dir, plugin, only } of pluginRoots()) {
@@ -226,6 +378,28 @@ export function installedSkills (projectRoot = process.cwd()) {
     for (const f of files) if (!only || only.has(path.normalize(path.relative(dir, path.dirname(f))))) add(f, 'plugin', plugin)
   }
   return found
+}
+
+function ancestors (root) {
+  const here = path.resolve(process.cwd())
+  const rel = path.relative(root, here)
+  if (rel.startsWith('..') || path.isAbsolute(rel)) return [root]
+  const dirs = []
+  for (let d = here; ; d = path.dirname(d)) {
+    dirs.push(d)
+    if (d === root || path.dirname(d) === d) return dirs
+  }
+}
+
+function readLock (file) {
+  const skills = readJson(file)?.skills
+  return skills && typeof skills === 'object' && !Array.isArray(skills) ? skills : null
+}
+
+function packOfSource (source) {
+  if (typeof source !== 'string') return undefined
+  const id = source.toLowerCase().replace(/^.*github\.com[/:]/, '').replace(/\.git$/, '')
+  return Object.keys(PACKS).find(k => PACKS[k].source === id)
 }
 
 function safeReal (p) {

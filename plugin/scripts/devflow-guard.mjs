@@ -8,17 +8,19 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadSettings, projectRoot } from './devflow-lib.mjs'
+import { agentFor, hookAgent, hookPayload, loadSettings, projectRoot } from './devflow-lib.mjs'
+
+const hookFrom = hookAgent(process.argv)
+const host = agentFor(hookFrom)
 
 function deny (reason) {
-  process.stdout.write(JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: 'PreToolUse',
-      permissionDecision: 'deny',
-      permissionDecisionReason: `devflow git guard: ${reason}. Don't work around it; give the user the exact command to run.`
-    }
-  }))
+  const text = `devflow git guard: ${reason}. Don't work around it; give the user the exact command to run.`
+  process.stdout.write(JSON.stringify(host.deny(text)))
   process.exit(0)
+}
+
+function allow () {
+  if (host.allow) process.stdout.write(JSON.stringify(host.allow))
 }
 
 // ---------- shell parsing ----------
@@ -230,17 +232,18 @@ export function inFlow (root, sessionId) {
 function main () {
   let input
   try {
-    input = JSON.parse(fs.readFileSync(0, 'utf8'))
+    input = hookPayload(JSON.parse(fs.readFileSync(0, 'utf8')), hookFrom)
   } catch {
-    return
+    return allow()
   }
   const root = projectRoot(input || {})
-  if (!loadSettings(root).git_guard) return
+  if (!loadSettings(root).git_guard) return allow()
   const command = input?.tool_input?.command
-  if (input?.tool_name !== 'Bash' || typeof command !== 'string') return
-  if (!inFlow(root, input?.session_id)) return
+  if (!host.shell.includes(input?.tool_name) || typeof command !== 'string') return allow()
+  if (!inFlow(root, input?.session_id)) return allow()
   const r = check(command)
   if (r) deny(r)
+  allow()
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main()
