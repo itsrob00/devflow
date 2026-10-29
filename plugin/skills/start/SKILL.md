@@ -1,11 +1,13 @@
 ---
 name: start
-description: Start dev work with devflow. Picks a flow (feature, bug, big job, small change), runs each step's skill from Matt Pocock's skills and pstack, and proves the result, setting the repo up first if needed. With nothing, picks up unfinished work like /devflow:continue.
+description: Start dev work with devflow. Picks a flow (feature, bug, big job, small change), runs each step's skill from Matt Pocock's skills and pstack, and proves the result, setting the repo up first if needed. With nothing, picks up unfinished work like devflow's continue skill.
 argument-hint: "[what you want done]"
 disable-model-invocation: true
 ---
 
-Task: $ARGUMENTS
+Task (a hint the host fills in): $ARGUMENTS
+
+If that line is empty or shows no text, the task is in the user's message: take it from there.
 
 `devflow` means `node "${CLAUDE_PLUGIN_ROOT}/scripts/devflow.mjs"`, run from the project root.
 
@@ -16,7 +18,7 @@ Before anything else, see what the task is:
 
 ## Running a step's skill
 
-Each step names a skill. Run it with `devflow show <skill>` and follow what it prints, not with the Skill tool and not your own way. Show each skill once per conversation; if its text is still in context, follow it without showing it again. A step that looks obvious still runs its skill: an easy bug still gets `diagnosing-bugs`' red loop and `blast-radius`'s proven safety fact. Where a skill asks the user something, ask; don't answer for them. If the user said they're away, take the recommended option and say which.
+Each step names a skill. Run it with `devflow show <skill>` and follow what it prints, not with the agent's own skill-loading tool (Claude Code's Skill tool) and not your own way. Show each skill once per conversation; if its text is still in context, follow it without showing it again. A step that looks obvious still runs its skill: an easy bug still gets `diagnosing-bugs`' red loop and `blast-radius`'s proven safety fact. Where a skill asks the user something, ask (as a multiple-choice question where the agent supports it, such as Claude Code's `AskUserQuestion`); don't answer for them. If the user said they're away, take the recommended option and say which.
 
 ## Saved flows
 
@@ -58,7 +60,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/start/flows/<flow>.md` for `feature`, `bug` o
 - **poteto-mode**: `poteto-mode` with the task. It picks its own playbook.
 - **direct**: make the change, run the closest tests and the type check, and show the diff.
 
-Keep a todo list whose first items are the flow's steps, each with its skill. Mark a step done only after you ran `devflow show` for its skill and met that skill's completion criteria. A skipped step stays listed with `skip: <reason>`.
+Keep a todo list (Claude Code's `TodoWrite`, or a checklist in the conversation) whose first items are the flow's steps, each with its skill. Mark a step done only after you ran `devflow show` for its skill and met that skill's completion criteria. A skipped step stays listed with `skip: <reason>`.
 
 ## Git
 
@@ -79,4 +81,4 @@ Paths: <spec, map or playbook, decision log, branch>
 Settings changed: <any the user overrode, or none>
 ```
 
-Then report: the flow, the skills that ran (only those loaded with `devflow show`; list other steps as skipped, with why), what changed, the evidence (test runs, the `verify-*` run, `blast-radius`'s safety fact), and what's left for the user. If work is left, say the next session picks it up with `/clear` and `/devflow:continue`. If the session hit a snag worth learning from, suggest `/devflow:wrap`; its handoff replaces the short one.
+Then report: the flow, the skills that ran (only those loaded with `devflow show`; list other steps as skipped, with why), what changed, the evidence (test runs, the `verify-*` run, `blast-radius`'s safety fact), and what's left for the user. If work is left, say the next session picks it up: start a fresh session (`/clear` in Claude Code) and run devflow's continue skill (`/devflow:continue` in Claude Code). If the session hit a snag worth learning from, suggest devflow's wrap skill (`/devflow:wrap` in Claude Code); its handoff replaces the short one.
