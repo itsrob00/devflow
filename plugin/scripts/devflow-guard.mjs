@@ -239,7 +239,7 @@ function main () {
   const root = projectRoot(input || {})
   if (!loadSettings(root).git_guard) return allow()
   const command = input?.tool_input?.command
-  if (!host.shell.includes(input?.tool_name) || typeof command !== 'string') return allow()
+  if (input?.tool_name !== 'Bash' || typeof command !== 'string') return allow()
   if (!inFlow(root, input?.session_id)) return allow()
   const r = check(command)
   if (r) deny(r)
