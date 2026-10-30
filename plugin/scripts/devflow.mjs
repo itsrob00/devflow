@@ -505,7 +505,7 @@ function track () {
   const m = /devflow(?:\.mjs)?["']?\s+flow\s+(new|set|show|done|handoff)\b\s*([^\s;&|]*)/.exec(cmd)
   if (!m) return
   const res = input.tool_response
-  const out = typeof res === 'string' ? res : (res && typeof res.stdout === 'string' ? res.stdout : [res?.returnDisplay, res?.llmContent].filter(x => typeof x === 'string').join('\n'))
+  const out = typeof res === 'string' ? res : (res && typeof res.stdout === 'string' ? res.stdout : '')
   const id = m[1] === 'new' ? (/(?:^|\s)([a-z0-9][a-z0-9-]*)\t\.devflow\/flows\//.exec(out)?.[1] ?? out.split('\t')[0].trim()) : m[2].replace(/^["']|["']$/g, '')
   const state = readState(id)
   if (!state || state.broken) return
