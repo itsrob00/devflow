@@ -81,7 +81,7 @@ export const AGENTS = {
     transcripts: false,
     otherFamilies: true,
     families: ALL_FAMILIES,
-    closest: { strong: 'claude-opus-5-5', fast: 'claude-sonnet-5-5' },
+    closest: { strong: 'anthropic/claude-opus-5-5', fast: 'anthropic/claude-sonnet-5-5' },
     pstackFile: ['.agents', 'pstack-models.md']
   }
 }
