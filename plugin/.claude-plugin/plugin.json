@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "devflow",
-  "version": "1.1.7",
+  "version": "1.2.0",
   "description": "Rob's Claude Code workflow on top of Matt Pocock's skills and pstack: picks the right flow for a task (feature, bug, big job, small change), runs each step's skill, and proves the result. Includes a git safety hook.",
   "author": {
     "name": "Rob"
@@ -56,10 +56,11 @@
     "after_session": {
       "type": "string",
       "title": "Session review",
-      "description": "Which review /devflow:wrap runs. retro: Matt's /retro, one pass that suggests changes to checks, standards, and docs. reflect: pstack's /reflect, three parallel reviewers that edit your skills.",
+      "description": "Which review /devflow:wrap runs. retro: Matt's /retro, one pass that suggests changes to checks, standards, and docs. reflect: pstack's /reflect, three parallel reviewers that edit your skills. handoff: no review, only the handoff.",
       "options": [
         "retro",
-        "reflect"
+        "reflect",
+        "handoff"
       ],
       "default": "reflect"
     }

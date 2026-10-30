@@ -1,0 +1,13 @@
+{
+  "name": "devflow",
+  "version": "1.2.0",
+  "description": "Rob's dev workflow on top of Matt Pocock's skills and pstack, installed into Codex CLI and other coding agents.",
+  "license": "MIT",
+  "private": true,
+  "bin": {
+    "devflow": "plugin/scripts/devflow-install.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

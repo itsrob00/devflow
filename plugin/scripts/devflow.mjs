@@ -4,7 +4,7 @@
 //   devflow find <skill>...            the SKILL.md devflow runs for each skill, or MISSING
 //   devflow show <skill>               print that SKILL.md, with its folder for resolving relative links
 //   devflow doctor [flow]              what is installed and set up, for one flow or all of them; runs git init if the folder isn't a repo
-//   devflow pstack-models              write pstack's per-machine model settings with Claude models, or swap Grok out of existing ones
+//   devflow pstack-models              on the original host, write pstack's per-machine model settings with Claude models, or swap Grok out of existing ones; on other agents, write nothing and report which models run
 //   devflow flows                      unfinished flows to continue, newest first, then older work devflow didn't track; marks flows whose PR merged done
 //   devflow flow new <flow> <title>    save a new flow; prints its id and folder
 //   devflow flow set <id> key=value... update a saved flow: step, next, tickets, pr, title, status, flow
@@ -20,11 +20,14 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { FLOWS, PACKS, SKILLS, claudeDir, findSkill, installedSkills, loadSettings, projectRoot } from './devflow-lib.mjs'
+import { ADAPTERS } from './devflow-adapters.mjs'
+import { AGENTS, CLAUDE_CODE, FLOWS, PACKS, SKILLS, agentFor, claudeDir, currentAgent, findSkill, hookAgent, hookPayload, installAdvice, installedSkills, loadSettings, modelFamily, packSkills, projectRoot } from './devflow-lib.mjs'
 
 // Hooks read their payload once here; the project folder comes from it, or from where the command runs.
 const HOOKS = ['reminder', 'rules', 'track', 'active']
-const input = HOOKS.includes(process.argv[2]) ? hookInput() : null
+const hookFrom = hookAgent(process.argv)
+const installedAgent = currentAgent()
+const input = HOOKS.includes(process.argv[2]) ? hookPayload(hookInput(), hookFrom) : null
 const root = projectRoot(input)
 
 function settings () {
@@ -40,16 +43,22 @@ function show (name) {
   if (!name) { console.error('usage: devflow show <skill>'); process.exit(2) }
   const s = findSkill(name, installedSkills(root))
   if (!s) {
-    console.log(`${name}\tMISSING${SKILLS[name] ? `, install ${PACKS[SKILLS[name]].title}: ${PACKS[SKILLS[name]].install}` : ''}`)
+    console.log(`${name}\tMISSING${SKILLS[name] ? `, install ${PACKS[SKILLS[name]].title}: ${installAdvice(SKILLS[name], installedAgent)}` : ''}`)
     process.exit(1)
   }
   const extra = fs.readdirSync(path.dirname(s.file)).filter(n => n !== 'SKILL.md')
   console.log(`# ${name}: ${s.file}${extra.length ? ` (its folder also has ${extra.join(', ')})` : ''}`)
-  console.log(`# Read all of it and follow it as if the user typed /${name}, phases and completion checklist included. Relative links resolve against its folder. Run any skill it calls with devflow show too, not the Skill tool.`)
+  console.log(`# Read all of it and follow it as if the user had asked for the ${name} skill, phases and completion checklist included. Relative links resolve against its folder. Run any skill it calls with devflow show too, not with a skill-loading tool (Claude Code's Skill tool, for one).`)
   console.log(fs.readFileSync(s.file, 'utf8'))
 }
 
 function pstackModels () {
+  if (installedAgent !== CLAUDE_CODE) {
+    const r = offHostModels()
+    const where = r.file || "pstack's defaults"
+    const state = r.blocked ? `${r.blocked} of ${r.total} entries can't run on ${r.label}; devflow pstack-models shows what each maps to` : `all run on ${r.label}`
+    return { ok: true, line: `pstack models: ${where} (${state})` }
+  }
   // /setup-pstack writes to ~/.claude/rules in Claude Code; older versions wrote to ~/.agents.
   const file = [path.join(claudeDir(), 'rules', 'pstack-models.md'), path.join(os.homedir(), '.agents', 'pstack-models.md')].find(f => fs.existsSync(f))
   let text
@@ -62,31 +71,64 @@ function pstackModels () {
 
 // /setup-pstack's defaults at the large budget. Grok is pstack's fast code model, so its roles get Sonnet, the fast
 // Claude tier, and panels keep two model families. Writing this directly skips /setup-pstack's detection and questions.
+const GROK = 'grok-4.7-xhigh-fast'
 const SONNET = 'claude-sonnet-5-5-xhigh'
 const OPUS = 'claude-opus-5-5-xhigh'
+const PSTACK_ROLES = [
+  ['feature, refactoring', [GROK]],
+  ['bug-fix', [GROK]],
+  ['perf-issue', [GROK]],
+  ['hillclimb', [GROK]],
+  ['judgment and prose', [OPUS]],
+  ['hardest tasks', [OPUS]],
+  ['how explorer', [GROK]],
+  ['how explainer', [OPUS]],
+  ['why investigators', [GROK]],
+  ['why synthesizer', [OPUS]],
+  ['reflect tooling', [GROK]],
+  ['reflect judgment, divergent, synthesizer', [OPUS]],
+  ['arena runners', [OPUS, GROK]],
+  ['arena cross-judge pool', [OPUS, GROK]],
+  ['swarm workers', [GROK]],
+  ['architect runners', [OPUS, GROK]],
+  ['interrogate reviewers', [OPUS, GROK]]
+]
 const PSTACK_MODELS = `# pstack model configuration. One line per role. Delete a line to fall back to the skill default.
 # \`inherit-parent\` or \`auto\` as a value: the role runs on the parent chat model (omit the subagent \`model\`). Alias entries in a panel list still count toward its fan-out.
 # budget: large (xhigh)
-feature, refactoring: ${SONNET}
-bug-fix: ${SONNET}
-perf-issue: ${SONNET}
-hillclimb: ${SONNET}
-judgment and prose: ${OPUS}
-hardest tasks: ${OPUS}
-how explorer: ${SONNET}
-how explainer: ${OPUS}
-why investigators: ${SONNET}
-why synthesizer: ${OPUS}
-reflect tooling: ${SONNET}
-reflect judgment, divergent, synthesizer: ${OPUS}
-arena runners: ${OPUS}, ${SONNET}
-arena cross-judge pool: ${OPUS}, ${SONNET}
-swarm workers: ${SONNET}
-architect runners: ${OPUS}, ${SONNET}
-interrogate reviewers: ${OPUS}, ${SONNET}
+${PSTACK_ROLES.map(([role, models]) => `${role}: ${models.map(m => m === GROK ? SONNET : m).join(', ')}`).join('\n')}
 `
 
+function offHostModels () {
+  const traits = AGENTS[installedAgent]
+  const file = path.join(os.homedir(), ...traits.pstackFile)
+  let text = null
+  try { text = fs.readFileSync(file, 'utf8') } catch {}
+  const roles = text === null ? PSTACK_ROLES : text.replace(/^---\r?\n[\s\S]*?\r?\n---/, '').split('\n').map(l => l.trim()).filter(l => /^[a-z][^:#]*:/.test(l)).map(l => {
+    const i = l.indexOf(':')
+    return [l.slice(0, i).trim(), l.slice(i + 1).split(',').map(m => m.trim()).filter(Boolean)]
+  })
+  const entries = roles.map(([role, models]) => [role, models.map(model => {
+    const family = modelFamily(model)
+    if (family === 'alias' || traits.families.includes(family)) return { model, runs: true }
+    return { model, runs: false, use: traits.closest[/opus/i.test(model) ? 'strong' : 'fast'] }
+  })])
+  const all = entries.flatMap(([, ms]) => ms)
+  const blocked = all.filter(m => !m.runs).length
+  return { entries, file: text === null ? null : file, total: all.length, blocked, label: traits.label, otherFamilies: traits.otherFamilies }
+}
+
+function reportModels () {
+  const r = offHostModels()
+  console.log(`pstack models on ${r.label}: nothing written. ${r.file ? `Checked ${r.file}.` : "No settings file, so pstack's defaults apply."}`)
+  for (const [role, ms] of r.entries) {
+    console.log(`${role}: ${ms.map(m => m.runs ? `${m.model} runs on ${r.label}` : `${m.model} can't run on ${r.label}; use ${m.use}`).join('; ')}`)
+  }
+  console.log(`other model family: ${r.otherFamilies ? 'available' : 'not available'}`)
+}
+
 function writePstackModels () {
+  if (installedAgent !== CLAUDE_CODE) { reportModels(); return }
   const file = path.join(claudeDir(), 'rules', 'pstack-models.md')
   const old = [file, path.join(os.homedir(), '.agents', 'pstack-models.md')].find(f => fs.existsSync(f))
   const text = old ? fs.readFileSync(old, 'utf8').replace(/grok[\w.-]*/gi, slug => `claude-sonnet-5-5-${slug.match(/-(max|xhigh|high|medium|low)(?=-fast$|$)/i)?.[1] || 'xhigh'}`) : PSTACK_MODELS
@@ -120,6 +162,9 @@ function ensureGit () {
   return { ok: true, line: 'git: ok' }
 }
 
+const REVIEW_SKILLS = { retro: ['retro', 'writing-for-agents'], reflect: ['reflect'] }
+const REVIEWS = ['retro', 'writing-for-agents', 'reflect']
+
 function doctor (only) {
   if (only && !FLOWS[only]) { console.error(`unknown flow ${only}; use one of ${Object.keys(FLOWS).join(', ')}`); process.exit(2) }
   const s = loadSettings(root)
@@ -131,7 +176,7 @@ function doctor (only) {
   for (const f of flows) {
     let names = FLOWS[f]
     if (f === 'small' && s.small_changes === 'direct') names = []
-    if (f === 'wrap') names = names.filter(n => s.after_session === 'reflect' ? !['retro', 'writing-for-agents'].includes(n) : n !== 'reflect')
+    if (f === 'wrap') names = names.filter(n => !REVIEWS.includes(n) || (REVIEW_SKILLS[s.after_session] || []).includes(n))
     needed[f] = names
     const missing = names.filter(n => !findSkill(n, all))
     console.log(`${f}: ${missing.length ? 'missing ' + missing.join(', ') : 'ok'}`)
@@ -139,7 +184,12 @@ function doctor (only) {
     if (missing.length) ready = false
   }
   for (const [pack, names] of Object.entries(missingByPack)) {
-    console.log(`install ${PACKS[pack].title} (${[...new Set(names)].length} missing): ${PACKS[pack].install}`)
+    console.log(`install ${PACKS[pack].title} (${[...new Set(names)].length} missing): ${installAdvice(pack, installedAgent)}`)
+  }
+  for (const pack of Object.keys(PACKS)) {
+    const wanted = packSkills(pack)
+    const have = wanted.filter(n => all.some(s => s.pack === pack && (s.name === n || s.name.endsWith(':' + n))))
+    console.log(`${PACKS[pack].title}: ${have.length} of ${wanted.length} installed`)
   }
 
   // tdd and teach ship in both packs. A loose pstack copy can shadow Matt's plugin copy.
@@ -160,7 +210,7 @@ function doctor (only) {
 
   if (!only || only === 'setup' || only === 'feature' || only === 'big') {
     const tracker = fs.existsSync(path.join(root, 'docs', 'agents', 'issue-tracker.md'))
-    console.log(`issue tracker: ${tracker ? 'docs/agents/issue-tracker.md' : 'not set up. Run /setup-matt-pocock-skills'}`)
+    console.log(`issue tracker: ${tracker ? 'docs/agents/issue-tracker.md' : 'not set up. Run the setup-matt-pocock-skills skill'}`)
     if (!tracker) ready = false
   }
   if (!only || only === 'setup' || only === 'feature' || only === 'bug') {
@@ -339,7 +389,7 @@ function untracked (flows) {
       const text = fs.readFileSync(file, 'utf8')
       if (!/handoff|devflow/i.test(n + text.slice(0, 2000)) || !namesProject(text)) continue
       const h = /^#\s+(.+)$/m.exec(text)
-      out.push({ time: mtimeMs, head: `handoff in the temp folder · ${day(mtimeMs)} · ${h ? h[1].trim() : n}`, next: `/devflow:continue resume ${file}` })
+      out.push({ time: mtimeMs, head: `handoff in the temp folder · ${day(mtimeMs)} · ${h ? h[1].trim() : n}`, next: `continue with: resume ${file}` })
     } catch {}
   }
   const linked = new Set(flows.filter(f => f.tickets).map(f => path.resolve(root, f.tickets)))
@@ -350,7 +400,7 @@ function untracked (flows) {
     const t = !linked.has(dir) && ticketFiles(dir)
     if (!t || !t.open.length) continue
     const time = Math.max(...t.all.map(f => fs.statSync(f).mtimeMs))
-    out.push({ time, head: `tickets · ${day(time)} · ${e.name}: ${t.open.length} of ${t.all.length} open`, next: `/devflow:continue ticket ${rel((t.ready[0] || t.open[0]))}` })
+    out.push({ time, head: `tickets · ${day(time)} · ${e.name}: ${t.open.length} of ${t.all.length} open`, next: `continue with: ticket ${rel((t.ready[0] || t.open[0]))}` })
   }
   return out.sort((a, b) => b.time - a.time)
 }
@@ -408,6 +458,10 @@ function flows () {
   }
 }
 
+function emit (event, additionalContext, systemMessage) {
+  console.log(JSON.stringify(agentFor(hookFrom).context(event, additionalContext, systemMessage)))
+}
+
 // SessionStart hook: one line for the user, and the same for Claude, when this project has work to continue.
 function reminder () {
   let found
@@ -417,25 +471,16 @@ function reminder () {
   const titles = found.active.slice(0, 3).map(f => f.title)
   const more = n - titles.length
   const list = titles.length ? ` (${titles.join(', ')}${more ? `, ${more} more` : ''})` : ''
-  const line = `devflow: ${n} unfinished flow${n === 1 ? '' : 's'} here${list}. Run /devflow:continue to pick one up.`
-  console.log(JSON.stringify({
-    systemMessage: line,
-    hookSpecificOutput: {
-      hookEventName: 'SessionStart',
-      additionalContext: `${line} To pick up earlier work, point the user to /devflow:continue; don't guess the flow or read flow folders yourself.`
-    }
-  }))
+  const named = ADAPTERS[hookFrom] ? hookFrom : installedAgent
+  const how = ADAPTERS[named] ? `${ADAPTERS[named].invoke.replace('{name}', 'continue')} in ${AGENTS[named].label}` : '/devflow:continue in Claude Code'
+  const line = `devflow: ${n} unfinished flow${n === 1 ? '' : 's'} here${list}. Run devflow's continue skill to pick one up (${how}).`
+  emit('SessionStart', `${line} To pick up earlier work, point the user to devflow's continue skill; don't guess the flow or read flow folders yourself.`, line)
 }
 
 // SessionStart hook, also after compaction, so the rule outlives the summary.
 function rules () {
   if (!loadSettings(root).no_comments) return
-  console.log(JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: 'SessionStart',
-      additionalContext: "Don't add comments or docstrings to code you write or edit, including ones explaining the change, unless the user asks. Leave existing comments alone unless your change makes them wrong."
-    }
-  }))
+  emit('SessionStart', "Don't add comments or docstrings to code you write or edit, including ones explaining the change, unless the user asks. Leave existing comments alone unless your change makes them wrong.")
 }
 
 // A conversation's flow is kept in .devflow/sessions/<session id>, so the reminder needs no guessing among open flows.
@@ -460,8 +505,8 @@ function track () {
   const m = /devflow(?:\.mjs)?["']?\s+flow\s+(new|set|show|done|handoff)\b\s*([^\s;&|]*)/.exec(cmd)
   if (!m) return
   const res = input.tool_response
-  const out = typeof res === 'string' ? res : (res && typeof res.stdout === 'string' ? res.stdout : '')
-  const id = m[1] === 'new' ? out.split('\t')[0].trim() : m[2].replace(/^["']|["']$/g, '')
+  const out = typeof res === 'string' ? res : (res && typeof res.stdout === 'string' ? res.stdout : [res?.returnDisplay, res?.llmContent].filter(x => typeof x === 'string').join('\n'))
+  const id = m[1] === 'new' ? (/(?:^|\s)([a-z0-9][a-z0-9-]*)\t\.devflow\/flows\//.exec(out)?.[1] ?? out.split('\t')[0].trim()) : m[2].replace(/^["']|["']$/g, '')
   const state = readState(id)
   if (!state || state.broken) return
   if (m[1] === 'done') {
@@ -487,15 +532,13 @@ function active () {
   try { id = fs.readFileSync(file, 'utf8').trim() } catch { return }
   const state = readState(id)
   if (!state || state.broken || state.status === 'done') return
-  const skill = fileURLToPath(new URL('../skills/start/SKILL.md', import.meta.url))
-  console.log(JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: input.hook_event_name === 'SessionStart' ? 'SessionStart' : 'UserPromptSubmit',
-      additionalContext: `devflow: on flow ${state.id} (${cap(state.flow)}: ${state.title}), step ${state.step}. ` +
-        `Treat this message as part of it unless it's unrelated, following the devflow start skill (devflow show per step, devflow flow set ${state.id} to save). ` +
-        `If that skill isn't in context, read ${skill} and run devflow flow show ${state.id}.`
-    }
-  }))
+  const plugged = fileURLToPath(new URL('../skills/start/SKILL.md', import.meta.url))
+  const entry = (ADAPTERS[installedAgent]?.entrySkill || '{name}').replace('{name}', 'start')
+  const fallback = fs.existsSync(plugged) ? `read ${plugged} and run` : `run devflow show ${entry} and`
+  emit(input.hook_event_name === 'SessionStart' ? 'SessionStart' : 'UserPromptSubmit',
+    `devflow: on flow ${state.id} (${cap(state.flow)}: ${state.title}), step ${state.step}. ` +
+    `Treat this message as part of it unless it's unrelated, following the devflow start skill (devflow show per step, devflow flow set ${state.id} to save). ` +
+    `If that skill isn't in context, ${fallback} devflow flow show ${state.id}.`)
 }
 
 const [cmd, ...args] = process.argv.slice(2)
