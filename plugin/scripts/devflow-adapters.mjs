@@ -42,8 +42,7 @@ export const ADAPTERS = {
       format: 'opencode-plugin',
       file: { user: '.config/opencode/devflow-plugin', project: '.opencode/devflow-plugin' },
       config: { user: '.config/opencode', project: '' }
-    },
-    note: "devflow's OpenCode plugin needs OpenCode 2. If opencode --version shows 1.x, run opencode upgrade --major."
+    }
   }
 }
 

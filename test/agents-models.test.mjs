@@ -98,14 +98,6 @@ test('pstack-models writes nothing outside the host and reports per role what ru
   assert.match(s.run({ DEVFLOW_AGENT: 'opencode' }, 'pstack-models'), /^other model family: available$/m)
 })
 
-test("on OpenCode, a model it can't run maps to a provider/model id OpenCode accepts", () => {
-  const s = sandbox()
-  write(path.join(s.home, '.agents', 'pstack-models.md'), 'bug-fix: composer-2.5\njudgment and prose: composer-2.5-opus\n')
-  const out = s.run({ DEVFLOW_AGENT: 'opencode' }, 'pstack-models')
-  assert.match(out, /^bug-fix: composer-2\.5 can't run on OpenCode; use anthropic\/claude-sonnet-5-5$/m)
-  assert.match(out, /^judgment and prose: composer-2\.5-opus can't run on OpenCode; use anthropic\/claude-opus-5-5$/m)
-})
-
 test('pstack-models checks the settings file the agent reads, and keeps aliases as they are', () => {
   const s = sandbox()
   write(path.join(s.home, '.agents', 'pstack-models.md'), '# budget: large (xhigh)\nfeature, refactoring: claude-sonnet-5-5-xhigh\nhow explainer: inherit-parent\narena runners: gemini-3-pro-preview, auto\nbug-fix: grok-4.7-xhigh-fast\n')

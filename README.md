@@ -1,6 +1,6 @@
 # devflow
 
-**One command for coding agents that plans, builds, checks and proves a task, step by step, using Matt Pocock's skills and pstack. It's a Claude Code plugin, and it also installs on Codex CLI, Cursor and OpenCode.**
+**A guided workflow for coding agents, built as a Claude Code plugin and installable on three more, that turns Matt Pocock's skills and pstack into one flow: describe a task, and devflow plans, builds, checks and proves it, step by step.**
 
 ```
 /devflow:start <what you want done>
@@ -119,20 +119,13 @@ Set these in `/plugin`, under devflow, Configure options. Saying otherwise in yo
 | No code comments | on | Claude adds no comments or docstrings to code it writes or edits, unless you ask. It leaves existing comments alone unless a change makes them wrong. |
 | Multi-model review | risky changes | When the feature flow adds `/interrogate`: on risky changes (auth, data, money, concurrency, migrations, public APIs), always, or never. |
 | Small changes | poteto-mode | `poteto-mode`, which uses far more tokens, or `direct`: make the change, run the closest tests, show the diff. |
-| Session review | reflect | Which review `/devflow:wrap` runs: `retro`, `reflect`, or `handoff` (a handoff with no transcript review). On OpenCode, whose transcripts devflow can't read, it defaults to `handoff`. |
-
-Outside `/plugin`, put the same settings in a JSON file:
-
-- `~/.config/devflow/settings.json` for every project
-- `.devflow/settings.json` at the project's git root for one project
-
-The keys are `git_guard` and `no_comments` (`true` or `false`), `adversarial_review` (`risky changes`, `always` or `never`), `small_changes` (`poteto-mode` or `direct`) and `after_session` (`retro`, `reflect` or `handoff`). For example: `{"small_changes": "direct"}`.
+| Session review | reflect | Which review `/devflow:wrap` runs: `retro`, `reflect`, or `handoff` (the handoff only, no transcript review). On OpenCode, whose transcripts devflow can't read, it defaults to `handoff`. |
 
 The project file overrides the user file, except that it can't turn the git guard off, so a cloned repo can't disarm it. In Claude Code, the `/plugin` options override both. devflow skips a missing or unreadable file and any value it doesn't know. `devflow settings` shows the result.
 
 ## Other coding agents
 
-devflow also runs on Codex CLI, Cursor and OpenCode. This doesn't change the Claude Code install above.
+devflow also runs on Codex CLI, Cursor and OpenCode.
 
 You need Node 18 or later and git. The installer runs through `npx`, which comes with Node.
 
@@ -200,13 +193,13 @@ The five settings work on every agent. There's no `/plugin` screen outside Claud
 
 Every install writes the git guard rules into the agent's always-on instructions, along with "check `devflow active` before replying", so devflow still behaves when hooks don't run. Beyond that:
 
-- **Codex CLI.** Hooks run only in trusted projects. Until you trust a project, the written rules in `AGENTS.md` are all that guard it. If you keep an `AGENTS.override.md`, Codex reads it instead of `AGENTS.md` and never sees devflow's block, so copy the block across.
-- **Cursor.** Cursor's prompt hook can't add context, so the per-message reminder comes from the always-applied rule. The guard hook fails closed: if it errors, Cursor blocks the command. Cursor doesn't promise to load a rule from your home folder, so if devflow's rule doesn't show up in Cursor's rules, install with `--project` in each repo.
-- **OpenCode.** OpenCode has no session-start hook, so the plugin's per-prompt context hook carries the session-start reminder. devflow can't read OpenCode's transcripts, so the session review defaults to `handoff`.
+- **Codex CLI**: hooks run only in trusted projects. Until a project is trusted, the written rules in `AGENTS.md` are all that guard it. The `.rules` file is a backstop that doesn't depend on hooks.
+- **Cursor**: Cursor's prompt hook can't add context, so the per-message reminder comes from the always-applied rule instead. The guard hook fails closed: if it errors, the command is blocked. Cursor documents project rules (`.cursor/rules`) but not a home-folder one, so if the rule doesn't load, install with `--project`.
+- **OpenCode**: there's no session-start hook, so the plugin's per-prompt context hook carries the session-start reminder. OpenCode's transcripts can't be read, so the session review defaults to `handoff`.
 
-The Codex `.rules` file is a second guard that doesn't depend on hooks. It blocks the guarded git commands in every session, not only during a flow, because it can't tell whether a flow is running. When you need one of them, run it yourself in a terminal; to lift the block, uninstall devflow for Codex. It only catches simple commands: Codex checks a `bash -c` script against the rules only when the script is a plain chain of commands, so a script with variables or `$(...)` gets past it. The hook guard still checks those.
+The Codex `.rules` file blocks the guarded git commands (`git push`, `reset --hard`, `clean -f`, `branch -D` and the whole-tree discards) in every session, not only during a flow, because it can't tell whether a flow is running. When you need one of those commands, run it yourself in a terminal. To lift the block, uninstall devflow for that agent.
 
-Cursor and OpenCode can run the cross-model review on a different model family from your main model. Codex runs only OpenAI models, and the review says so. On every agent but Claude Code, pstack keeps its own model defaults; `devflow pstack-models` shows which of them your agent can run and what to use instead.
+Cursor and OpenCode can run the cross-model review on a different model family from your main model. Codex says plainly in the review that no other family was available. pstack keeps its own model defaults on every agent but Claude Code.
 
 ## Contributing
 
