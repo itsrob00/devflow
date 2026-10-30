@@ -373,3 +373,17 @@ test('a project install of the plugin finds its scripts from a subfolder, whethe
     assert.equal(await tryRun(hooks.tool['execute.before'], { tool: 'shell', sessionID: 'ses_flow1', input: { command: 'git status' } }), null)
   }
 })
+
+test('tool events without a session id use the session the context hook last saw, so the guard and linking still work', async () => {
+  const s = sandbox({ name: 'devflow-opencode' })
+  assert.equal(s.run('install', '--agent', 'opencode').status, 0)
+  const { hooks, proj } = await loaded(s)
+  write(path.join(proj, '.devflow', 'flows', 'cart', 'state.json'), JSON.stringify({ flow: 'feature', status: 'active', title: 'Cart' }))
+  const before = hooks.tool['execute.before']
+  assert.equal(await tryRun(before, { tool: 'shell', input: { command: 'git push' } }), null)
+  await hooks.session.context({ sessionID: 'ses_ctx', system: [], messages: [], tools: {}, options: {} })
+  await hooks.tool['execute.after']({ tool: 'shell', input: { command: 'node "/x/devflow.mjs" flow show cart' }, status: 'completed', result: { output: 'ok' } })
+  assert.equal(fs.readFileSync(path.join(proj, '.devflow', 'sessions', 'ses_ctx'), 'utf8').trim(), 'cart')
+  assert.ok(await tryRun(before, { tool: 'shell', input: { command: 'git push' } }))
+  assert.equal(await tryRun(before, { tool: 'shell', sessionID: 'ses_other', input: { command: 'git push' } }), null)
+})
