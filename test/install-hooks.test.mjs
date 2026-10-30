@@ -24,12 +24,6 @@ const FORMATS = {
     payload: (s, command, session) => ({ conversation_id: session, workspace_roots: [s.project], cwd: s.sub, hook_event_name: 'preToolUse', tool_name: 'Shell', tool_input: { command } }),
     denied: out => out.permission === 'deny',
     allowed: out => out?.permission === 'allow'
-  },
-  gemini: {
-    file: ['.gemini', 'settings.json'],
-    payload: (s, command, session) => ({ session_id: session, cwd: s.sub, hook_event_name: 'BeforeTool', tool_name: 'run_shell_command', tool_input: { command } }),
-    denied: out => out.decision === 'deny',
-    allowed: out => out === null
   }
 }
 

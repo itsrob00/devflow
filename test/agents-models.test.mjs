@@ -26,17 +26,17 @@ function sandbox () {
 
 const review = out => /^session review: (.*)$/m.exec(out)[1]
 
-test('session review defaults to a handoff only on OpenCode and Gemini, and an explicit setting wins', () => {
+test('session review defaults to a handoff only on OpenCode, and an explicit setting wins', () => {
   const s = sandbox()
-  for (const agent of ['opencode', 'gemini']) assert.equal(review(s.run({ DEVFLOW_AGENT: agent }, 'settings')), 'handoff', agent)
-  for (const agent of ['codex', 'cursor', 'pi', 'claude-code']) assert.equal(review(s.run({ DEVFLOW_AGENT: agent }, 'settings')), 'reflect', agent)
+  assert.equal(review(s.run({ DEVFLOW_AGENT: 'opencode' }, 'settings')), 'handoff')
+  for (const agent of ['codex', 'cursor', 'claude-code']) assert.equal(review(s.run({ DEVFLOW_AGENT: agent }, 'settings')), 'reflect', agent)
   assert.equal(review(s.run({}, 'settings')), 'reflect')
 
   const user = path.join(s.home, '.config', 'devflow', 'settings.json')
   write(user, JSON.stringify({ after_session: 'retro' }))
   assert.equal(review(s.run({ DEVFLOW_AGENT: 'opencode' }, 'settings')), 'retro')
   write(user, JSON.stringify({ after_session: 'reflect' }))
-  assert.equal(review(s.run({ DEVFLOW_AGENT: 'gemini' }, 'settings')), 'reflect')
+  assert.equal(review(s.run({ DEVFLOW_AGENT: 'opencode' }, 'settings')), 'reflect')
   write(path.join(s.project, '.devflow', 'settings.json'), JSON.stringify({ after_session: 'handoff' }))
   assert.equal(review(s.run({ DEVFLOW_AGENT: 'codex' }, 'settings')), 'handoff')
   assert.equal(review(s.run({}, 'settings')), 'handoff')
@@ -59,8 +59,6 @@ test('a script copied into a runtime folder takes its agent from the agent.json 
     return r.stdout
   }
   assert.equal(review(run('settings')), 'reflect')
-  write(path.join(runtime, 'agent.json'), JSON.stringify({ agent: 'gemini', scope: 'user' }))
-  assert.equal(review(run('settings')), 'handoff')
   write(path.join(runtime, 'agent.json'), JSON.stringify({ agent: 'codex', scope: 'user' }))
   assert.equal(review(run('settings')), 'reflect')
   write(path.join(runtime, 'agent.json'), '{bad')
@@ -95,22 +93,21 @@ test('pstack-models writes nothing outside the host and reports per role what ru
   assert.match(codex, /^interrogate reviewers: claude-opus-5-5-xhigh can't run on Codex CLI; use gpt-6-astra; grok-4\.7-xhigh-fast can't run on Codex CLI; use gpt-6\.1-terra$/m)
   assert.match(codex, /^other model family: not available$/m)
 
-  for (const agent of ['cursor', 'codex', 'opencode', 'gemini', 'pi']) s.run({ DEVFLOW_AGENT: agent }, 'pstack-models')
+  for (const agent of ['cursor', 'codex', 'opencode']) s.run({ DEVFLOW_AGENT: agent }, 'pstack-models')
   assert.deepEqual(fs.readdirSync(s.home), [])
   assert.match(s.run({ DEVFLOW_AGENT: 'opencode' }, 'pstack-models'), /^other model family: available$/m)
-  assert.match(s.run({ DEVFLOW_AGENT: 'gemini' }, 'pstack-models'), /^other model family: not available$/m)
 })
 
 test('pstack-models checks the settings file the agent reads, and keeps aliases as they are', () => {
   const s = sandbox()
   write(path.join(s.home, '.agents', 'pstack-models.md'), '# budget: large (xhigh)\nfeature, refactoring: claude-sonnet-5-5-xhigh\nhow explainer: inherit-parent\narena runners: gemini-3-pro-preview, auto\nbug-fix: grok-4.7-xhigh-fast\n')
-  const gemini = s.run({ DEVFLOW_AGENT: 'gemini' }, 'pstack-models')
-  assert.match(gemini, /\.agents[\\/]pstack-models\.md/)
-  assert.match(gemini, /^feature, refactoring: claude-sonnet-5-5-xhigh can't run on Gemini CLI; use gemini-3-flash-preview$/m)
-  assert.match(gemini, /^how explainer: inherit-parent runs on Gemini CLI$/m)
-  assert.match(gemini, /^arena runners: gemini-3-pro-preview runs on Gemini CLI; auto runs on Gemini CLI$/m)
-  assert.match(gemini, /^bug-fix: grok-4\.7-xhigh-fast can't run on Gemini CLI; use gemini-3-flash-preview$/m)
-  assert.doesNotMatch(gemini, /^judgment and prose/m)
+  const codex = s.run({ DEVFLOW_AGENT: 'codex' }, 'pstack-models')
+  assert.match(codex, /\.agents[\\/]pstack-models\.md/)
+  assert.match(codex, /^feature, refactoring: claude-sonnet-5-5-xhigh can't run on Codex CLI; use gpt-6\.1-terra$/m)
+  assert.match(codex, /^how explainer: inherit-parent runs on Codex CLI$/m)
+  assert.match(codex, /^arena runners: gemini-3-pro-preview can't run on Codex CLI; use gpt-6\.1-terra; auto runs on Codex CLI$/m)
+  assert.match(codex, /^bug-fix: grok-4\.7-xhigh-fast can't run on Codex CLI; use gpt-6\.1-terra$/m)
+  assert.doesNotMatch(codex, /^judgment and prose/m)
   assert.equal(fs.readFileSync(path.join(s.home, '.agents', 'pstack-models.md'), 'utf8').includes('claude-sonnet-5-5-xhigh'), true)
 
   write(path.join(s.home, '.cursor', 'rules', 'pstack-models.mdc'), '---\nalwaysApply: true\n---\nbug-fix: grok-4.7-xhigh-fast\n')
@@ -124,7 +121,7 @@ test('doctor does not report pstack models as missing outside the host, and stil
   const s = sandbox()
   const models = out => /^pstack models: .*$/m.exec(out)[0]
   assert.match(models(s.run({}, 'doctor', 'big')), /not set/)
-  for (const agent of ['cursor', 'opencode', 'codex', 'gemini', 'pi']) {
+  for (const agent of ['cursor', 'opencode', 'codex']) {
     const line = models(s.run({ DEVFLOW_AGENT: agent }, 'doctor', 'big'))
     assert.doesNotMatch(line, /not set|uses Grok|Run devflow pstack-models/, agent)
     assert.match(line, /pstack's defaults/, agent)
@@ -138,7 +135,7 @@ test('doctor does not report pstack models as missing outside the host, and stil
 test('off the host, doctor and show name the installer for a missing pack, and on the host they still name /plugin install', () => {
   const s = sandbox()
   const missing = extra => s.run(extra, 'doctor', 'feature')
-  for (const agent of ['codex', 'cursor', 'opencode', 'gemini', 'pi']) {
+  for (const agent of ['codex', 'cursor', 'opencode']) {
     const out = missing({ DEVFLOW_AGENT: agent })
     assert.match(out, new RegExp(`install Matt Pocock's skills \\(devflow-matt\\) \\(\\d+ missing\\): npx github:itsrob00/devflow install --agent ${agent}$`, 'm'), agent)
     assert.match(out, new RegExp(`install pstack \\(devflow-pstack\\) \\(\\d+ missing\\): npx github:itsrob00/devflow install --agent ${agent}$`, 'm'), agent)
