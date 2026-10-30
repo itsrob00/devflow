@@ -55,11 +55,13 @@ export default {
   async setup (ctx) {
     const cwd = folder(ctx)
     const starts = new Map()
+    let lastSession
+    const sessionOf = event => event.sessionID ?? lastSession
 
     await ctx.tool.hook('execute.before', event => {
       const command = commandOf(event)
       if (command === null) return
-      const { failed, reply } = run(cwd, 'devflow-guard.mjs', [], { session_id: event.sessionID, cwd, tool_name: 'Bash', tool_input: { command } })
+      const { failed, reply } = run(cwd, 'devflow-guard.mjs', [], { session_id: sessionOf(event), cwd, tool_name: 'Bash', tool_input: { command } })
       if (failed && /\bgit\b/i.test(command)) throw new Error(GUARD_DOWN)
       const out = reply?.hookSpecificOutput
       if (out?.permissionDecision === 'deny') throw new Error(out.permissionDecisionReason || 'devflow git guard: blocked')
@@ -69,7 +71,7 @@ export default {
       const command = commandOf(event)
       if (command === null || event.status !== 'completed' || !command.includes('devflow')) return
       run(cwd, 'devflow.mjs', ['track'], {
-        session_id: event.sessionID,
+        session_id: sessionOf(event),
         cwd,
         tool_name: 'Bash',
         tool_input: { command },
@@ -78,6 +80,7 @@ export default {
     })
 
     await ctx.session.hook('context', event => {
+      lastSession = event.sessionID
       const payload = { session_id: event.sessionID, cwd }
       let start = starts.get(event.sessionID)
       if (!start) {

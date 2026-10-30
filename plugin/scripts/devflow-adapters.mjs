@@ -11,7 +11,11 @@ export const ADAPTERS = {
       events: { PreToolUse: 'PreToolUse', PostToolUse: 'PostToolUse', SessionStart: 'SessionStart', UserPromptSubmit: 'UserPromptSubmit' },
       tools: { Bash: 'Bash' }
     },
-    backstop: { format: 'codex-rules', file: '.codex/rules/devflow.rules' }
+    backstop: { format: 'codex-rules', file: '.codex/rules/devflow.rules' },
+    note: {
+      user: "Codex runs devflow's hooks only after you trust them: run /hooks in Codex and trust each devflow hook. Do it again after each devflow update, because Codex skips a changed hook until you trust it again.",
+      project: "Codex runs devflow's hooks only after you trust them: trust this project in Codex, then run /hooks and trust each devflow hook. Do it again after each devflow update, because Codex skips a changed hook until you trust it again."
+    }
   },
   cursor: {
     entrySkill: 'devflow-{name}',
@@ -25,7 +29,8 @@ export const ADAPTERS = {
       events: { PreToolUse: 'preToolUse', PostToolUse: 'postToolUse', SessionStart: 'sessionStart' },
       tools: { Bash: 'Shell' },
       failClosed: ['preToolUse']
-    }
+    },
+    note: { user: "Cursor doesn't promise to load an always-on rule from your home folder. If devflow's rule doesn't show up in Cursor's rules, install in each repo with --project instead." }
   },
   opencode: {
     entrySkill: 'devflow-{name}',
@@ -37,7 +42,8 @@ export const ADAPTERS = {
       format: 'opencode-plugin',
       file: { user: '.config/opencode/devflow-plugin', project: '.opencode/devflow-plugin' },
       config: { user: '.config/opencode', project: '' }
-    }
+    },
+    note: "devflow's OpenCode plugin needs OpenCode 2. If opencode --version shows 1.x, run opencode upgrade --major."
   }
 }
 

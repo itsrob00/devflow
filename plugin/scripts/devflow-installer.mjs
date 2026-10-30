@@ -473,6 +473,8 @@ export function install ({ agent, scope = 'user', log = () => {} }) {
     writeRecord(scope, base, rest, entry.dirs)
   }
   log(`installed devflow for ${AGENTS[agent].label}: ${entry.files.length} files and ${entry.blocks.length} edited files, recorded in ${recordFile(scope, base)}`)
+  const note = adapter.note && at(adapter.note, scope)
+  if (note) log(note)
   return entry
 }
 
