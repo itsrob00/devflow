@@ -33,8 +33,8 @@ const GUARDED = [
   ['git', 'restore', '.']
 ]
 
-const HOOK_FORMATS = { 'claude-json': claudeJson, 'cursor-json': cursorJson, 'gemini-json': geminiJson, 'opencode-plugin': opencodePlugin, 'pi-extension': piExtension }
-const BACKSTOP_FORMATS = { 'codex-rules': codexRules, 'gemini-policy': geminiPolicy }
+const HOOK_FORMATS = { 'claude-json': claudeJson, 'cursor-json': cursorJson, 'opencode-plugin': opencodePlugin }
+const BACKSTOP_FORMATS = { 'codex-rules': codexRules }
 const RULE_FORMATS = { 'cursor-mdc': cursorMdc }
 
 export function agentNames () {
@@ -164,27 +164,6 @@ function readConfig (file, key, value) {
   return json
 }
 
-function geminiJson (adapter, ctx) {
-  const out = {}
-  for (const [event, groups] of Object.entries(claudeJson(adapter, ctx).hooks)) {
-    const kept = groups.filter(g => g.matcher !== 'compact')
-    if (kept.length) out[event] = kept
-  }
-  return { hooks: out }
-}
-
-function piExtension (adapter, ctx) {
-  const scripts = JSON.stringify(expandPluginRoot('${CLAUDE_PLUGIN_ROOT}/scripts', ctx))
-  const source = fs.readFileSync(path.join(PLUGIN, 'hooks', 'pi-extension.ts.tmpl'), 'utf8')
-    .replace('__SCRIPTS__', () => scripts)
-    .replace('__SHELL__', () => JSON.stringify(AGENTS.pi.shell))
-  return { files: { 'devflow.ts': source } }
-}
-
-function expandPrefixes (pattern) {
-  return pattern.reduce((acc, part) => acc.flatMap(a => (Array.isArray(part) ? part : [part]).map(p => [...a, p])), [[]]).map(a => a.join(' '))
-}
-
 function readHooksFile (file) {
   if (!fs.existsSync(file)) return {}
   let json
@@ -195,12 +174,6 @@ function readHooksFile (file) {
     throw new Error(`${file} doesn't hold a JSON object with a "hooks" object, so devflow won't edit it. Fix that and run install again; install adds devflow's hooks to it.`)
   }
   return json
-}
-
-function geminiPolicy () {
-  const header = '# devflow git guard backstop. Written by devflow install; devflow uninstall removes this file.\n'
-  const prefixes = GUARDED.flatMap(expandPrefixes).map(p => `  ${JSON.stringify(p)},`)
-  return `${header}\n[[rule]]\ntoolName = "run_shell_command"\ncommandPrefix = [\n${prefixes.join('\n')}\n]\ndecision = "deny"\npriority = 900\ndenyMessage = "devflow git guard: this command loses work or leaves the machine. Give the user the exact command to run."\n`
 }
 
 function starlark (x) {
@@ -242,8 +215,8 @@ function runSkills (args, cwd) {
   if (r.error || r.status !== 0) throw new Error(`npx skills ${args[0]} failed${r.error ? `: ${r.error.message}` : ` (exit ${r.status})`}`)
 }
 
-function upstreamAddArgs (adapter, pack, scope) {
-  return ['add', PACKS[pack].source, '-a', adapter.skillsAgent, '-s', ...packSkills(pack), '-y', ...(scope === 'user' ? ['-g'] : [])]
+function upstreamAddArgs (agent, pack, scope) {
+  return ['add', PACKS[pack].source, '-a', agent, '-s', ...packSkills(pack), '-y', ...(scope === 'user' ? ['-g'] : [])]
 }
 
 function upstreamRemoveArgs (names, scope) {
@@ -468,12 +441,12 @@ function putRuntime (entry, { pluginDir, agent, scope }) {
 export function install ({ agent, scope = 'user', log = () => {} }) {
   const { adapter, base, where, pluginDir, ref } = plan(agent, scope)
   const skillsDir = where(adapter.skills)
-  const backstop = adapter.backstop && at(adapter.backstop.file, scope) ? adapter.backstop : null
+  const backstop = adapter.backstop
   const ctx = { adapter, skillsDir, where, pluginDir, ref, agent, scope, backstop }
   const rendered = adapter.hooks ? HOOK_FORMATS[adapter.hooks.format](adapter, ctx) : {}
   if (rendered.hooks) readHooksFile(where(adapter.hooks.file))
   const added = addedUpstream(scope, base)
-  for (const pack of Object.keys(PACKS)) runSkills(upstreamAddArgs(adapter, pack, scope), scope === 'project' ? base : undefined)
+  for (const pack of Object.keys(PACKS)) runSkills(upstreamAddArgs(agent, pack, scope), scope === 'project' ? base : undefined)
 
   const record = readRecord(scope, base)
   const prior = record.find(e => e.agent === agent && e.scope === scope)

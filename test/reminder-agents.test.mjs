@@ -9,9 +9,7 @@ import { devflow as script } from './helpers.mjs'
 const WORDING = {
   codex: ['$devflow-continue in Codex CLI', 'env'],
   cursor: ['/devflow-continue in Cursor', 'flag'],
-  opencode: ['@devflow-continue in OpenCode', 'env'],
-  gemini: ['/devflow-continue in Gemini CLI', 'flag'],
-  pi: ['/skill:devflow-continue in Pi', 'flag']
+  opencode: ['@devflow-continue in OpenCode', 'env']
 }
 
 function reminder (agent, how) {

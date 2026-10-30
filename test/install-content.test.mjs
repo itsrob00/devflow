@@ -5,20 +5,18 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { sandbox, tree } from './helpers.mjs'
 
-const AGENTS = ['codex', 'cursor', 'opencode', 'gemini', 'pi']
+const AGENTS = ['codex', 'cursor', 'opencode']
 
 const INSTRUCTIONS = {
   codex: { user: ['.codex', 'AGENTS.md'], project: ['AGENTS.md'] },
   cursor: { user: ['.cursor', 'rules', 'devflow.mdc'], project: ['.cursor', 'rules', 'devflow.mdc'] },
-  opencode: { user: ['.config', 'opencode', 'AGENTS.md'], project: ['AGENTS.md'] },
-  gemini: { user: ['.gemini', 'GEMINI.md'], project: ['GEMINI.md'] },
-  pi: { user: ['.pi', 'agent', 'AGENTS.md'], project: ['AGENTS.md'] }
+  opencode: { user: ['.config', 'opencode', 'AGENTS.md'], project: ['AGENTS.md'] }
 }
 
 const guardLine = text => text.split('\n').find(l => /^- Git guard/.test(l))
 
 for (const agent of AGENTS) {
-  const always = agent === 'codex' || agent === 'gemini'
+  const always = agent === 'codex'
   test(`the instructions installed for ${agent} say the git guard is ${always ? 'on in every session' : 'on while a flow is running'}`, () => {
     const s = sandbox({ name: 'devflow-content' })
     assert.equal(s.run('install', '--agent', agent).status, 0)
@@ -34,15 +32,15 @@ for (const agent of AGENTS) {
   })
 }
 
-test('a project install of codex says every session, and one of gemini, which has no backstop there, says while a flow is running', () => {
+test('a project install of codex says every session, and one of cursor, which has no backstop, says while a flow is running', () => {
   const s = sandbox({ name: 'devflow-content' })
   assert.equal(s.runProject('install', '--agent', 'codex', '--project').status, 0)
   assert.match(guardLine(fs.readFileSync(path.join(s.project, 'AGENTS.md'), 'utf8')), /every session/)
-  assert.equal(s.runProject('install', '--agent', 'gemini', '--project').status, 0)
-  assert.match(guardLine(fs.readFileSync(path.join(s.project, 'GEMINI.md'), 'utf8')), /^- Git guard, while a flow is running:/)
+  assert.equal(s.runProject('install', '--agent', 'cursor', '--project').status, 0)
+  assert.match(guardLine(fs.readFileSync(path.join(s.project, '.cursor', 'rules', 'devflow.mdc'), 'utf8')), /^- Git guard, while a flow is running:/)
 })
 
-const SKILLS = { codex: '.codex/skills', cursor: '.cursor/skills', opencode: '.config/opencode/skills', gemini: '.gemini/skills', pi: '.pi/agent/skills' }
+const SKILLS = { codex: '.codex/skills', cursor: '.cursor/skills', opencode: '.config/opencode/skills' }
 
 for (const agent of AGENTS) {
   test(`no skill installed for ${agent} carries the Claude Code argument hint or names Claude Code as the way to run a step`, () => {

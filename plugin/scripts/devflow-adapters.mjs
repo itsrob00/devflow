@@ -1,6 +1,5 @@
 export const ADAPTERS = {
   codex: {
-    skillsAgent: 'codex',
     entrySkill: 'devflow-{name}',
     invoke: '$devflow-{name}',
     skills: { user: '.codex/skills', project: '.agents/skills' },
@@ -15,7 +14,6 @@ export const ADAPTERS = {
     backstop: { format: 'codex-rules', file: '.codex/rules/devflow.rules' }
   },
   cursor: {
-    skillsAgent: 'cursor',
     entrySkill: 'devflow-{name}',
     invoke: '/devflow-{name}',
     skills: { user: '.cursor/skills', project: '.cursor/skills' },
@@ -30,7 +28,6 @@ export const ADAPTERS = {
     }
   },
   opencode: {
-    skillsAgent: 'opencode',
     entrySkill: 'devflow-{name}',
     invoke: '@devflow-{name}',
     skills: { user: '.config/opencode/skills', project: '.opencode/skills' },
@@ -41,30 +38,6 @@ export const ADAPTERS = {
       file: { user: '.config/opencode/devflow-plugin', project: '.opencode/devflow-plugin' },
       config: { user: '.config/opencode', project: '' }
     }
-  },
-  gemini: {
-    skillsAgent: 'gemini-cli',
-    entrySkill: 'devflow-{name}',
-    invoke: '/devflow-{name}',
-    skills: '.gemini/skills',
-    reads: ['.agents/skills', '.gemini/skills'],
-    instructions: { user: '.gemini/GEMINI.md', project: 'GEMINI.md' },
-    hooks: {
-      format: 'gemini-json',
-      file: '.gemini/settings.json',
-      events: { PreToolUse: 'BeforeTool', PostToolUse: 'AfterTool', SessionStart: 'SessionStart', UserPromptSubmit: 'BeforeAgent' },
-      tools: { Bash: 'run_shell_command' }
-    },
-    backstop: { format: 'gemini-policy', file: { user: '.gemini/policies/devflow.toml' } }
-  },
-  pi: {
-    skillsAgent: 'pi',
-    entrySkill: 'devflow-{name}',
-    invoke: '/skill:devflow-{name}',
-    skills: { user: '.pi/agent/skills', project: '.pi/skills' },
-    reads: ['.agents/skills', '.pi/agent/skills', '.pi/skills'],
-    instructions: { user: '.pi/agent/AGENTS.md', project: 'AGENTS.md' },
-    hooks: { format: 'pi-extension', file: { user: '.pi/agent/extensions', project: '.pi/extensions' } }
   }
 }
 

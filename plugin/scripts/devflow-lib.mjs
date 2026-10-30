@@ -24,7 +24,6 @@ const ALL_FAMILIES = ['claude', 'gpt', 'gemini', 'grok']
 export const CLAUDE_CODE = 'claude-code'
 
 const claudeStyle = {
-  shell: ['Bash'],
   payload: input => input,
   deny: text => ({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: text } }),
   allow: null,
@@ -64,7 +63,6 @@ export const AGENTS = {
     families: [...ALL_FAMILIES, 'composer'],
     closest: { strong: 'claude-opus-5-5', fast: 'claude-sonnet-5-5' },
     pstackFile: ['.cursor', 'rules', 'pstack-models.mdc'],
-    shell: ['Bash'],
     payload (input) {
       const out = { ...input }
       if (!out.session_id) out.session_id = out.conversation_id
@@ -85,30 +83,6 @@ export const AGENTS = {
     families: ALL_FAMILIES,
     closest: { strong: 'claude-opus-5-5', fast: 'claude-sonnet-5-5' },
     pstackFile: ['.agents', 'pstack-models.md']
-  },
-  gemini: {
-    ...claudeStyle,
-    label: 'Gemini CLI',
-    transcripts: false,
-    otherFamilies: false,
-    families: ['gemini'],
-    closest: { strong: 'gemini-3-pro-preview', fast: 'gemini-3-flash-preview' },
-    pstackFile: ['.agents', 'pstack-models.md'],
-    shell: ['run_shell_command'],
-    deny: text => ({ decision: 'deny', reason: text }),
-    context: (event, additionalContext, systemMessage) => claudeStyle.context(event === 'UserPromptSubmit' ? 'BeforeAgent' : event, additionalContext, systemMessage)
-  },
-  pi: {
-    ...claudeStyle,
-    label: 'Pi',
-    transcripts: true,
-    otherFamilies: false,
-    families: ALL_FAMILIES,
-    closest: { strong: 'claude-opus-5-5', fast: 'claude-sonnet-5-5' },
-    pstackFile: ['.agents', 'pstack-models.md'],
-    shell: ['bash', 'powershell'],
-    deny: text => ({ block: true, reason: text }),
-    context: (event, additionalContext, systemMessage) => ({ additionalContext, ...(systemMessage ? { systemMessage } : {}) })
   }
 }
 

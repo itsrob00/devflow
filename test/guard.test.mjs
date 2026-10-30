@@ -74,21 +74,3 @@ test('fed Codex\'s hook payload with no Claude env vars, the guard blocks every 
   assert.equal((await ask('git push', { session_id: 'someone-else' })).stdout, '')
   assert.equal((await ask('git push', { cwd: s.root })).stdout, '')
 })
-
-test('Pi\'s powershell tool is guarded like bash, with every blocked case and none of the allowed ones', async () => {
-  const s = flowSandbox('pi-session')
-  const ask = (tool, command) => feed(guard, ['--agent', 'pi'], { session_id: 'pi-session', cwd: s.sub, hook_event_name: 'tool_call', tool_name: tool, tool_input: { command } }, { env: s.env })
-
-  for (const tool of ['bash', 'powershell']) {
-    const denied = await askAll(blocked, c => ask(tool, c))
-    denied.forEach((r, i) => {
-      const reply = JSON.parse(r.stdout || 'null')
-      assert.equal(reply?.block, true, `${tool} should block: ${JSON.stringify(blocked[i])}`)
-      assert.match(reply.reason, /^devflow git guard: /)
-    })
-    const passed = await askAll(allowed, c => ask(tool, c))
-    passed.forEach((r, i) => assert.equal(r.stdout, '', `${tool} should allow: ${JSON.stringify(allowed[i])}`))
-  }
-  assert.equal((await ask('Bash', 'git push')).stdout, '')
-  assert.equal((await ask('read', 'git push')).stdout, '')
-})
