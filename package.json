@@ -1,6 +1,6 @@
 {
   "name": "devflow",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Rob's dev workflow on top of Matt Pocock's skills and pstack, installed into Codex CLI and other coding agents.",
   "license": "MIT",
   "private": true,

@@ -287,9 +287,18 @@ function ticketFiles (dir) {
   return { all, open, ready: open.filter(f => !BLOCKED.test(text(f))) }
 }
 
+// The folder a flow's tickets ref names. wayfinder and to-tickets keep their tickets in an issues/ folder beside the
+// map or spec, so a ref to the effort folder (or to map.md) means that issues/ folder.
+function ticketDir (ref) {
+  const dir = path.resolve(root, ref)
+  const issues = path.join(dir, 'issues')
+  try { if (fs.statSync(issues).isDirectory()) return issues } catch {}
+  return dir
+}
+
 function nextTicket (state) {
   if (!state.tickets) return null
-  const dir = path.resolve(root, state.tickets)
+  const dir = ticketDir(state.tickets)
   const t = ticketFiles(dir)
   if (!t) return fs.existsSync(dir) ? null : `next ticket: the first open one in ${state.tickets} on the issue tracker; check its blockers`
   if (!t.open.length) return `tickets: all ${t.all.length} in ${state.tickets} are done`
@@ -324,8 +333,9 @@ function flow ([sub, id, ...rest]) {
       let v = kv.slice(i + 1)
       if (i < 1 || !FIELDS.includes(k)) fail(usage)
       if (k === 'flow' && !FIRST_STEP[v = v.toLowerCase()]) fail(`flow must be one of ${Object.keys(FIRST_STEP).join(', ')}`)
-      // A ticket file stands for its folder.
+      // A ticket file (or a wayfinder map.md) stands for its folder, and an effort folder for its issues/ folder.
       if (k === 'tickets' && v.endsWith('.md') && fs.existsSync(path.resolve(root, v))) v = rel(path.dirname(path.resolve(root, v)))
+      if (k === 'tickets' && v && fs.existsSync(path.resolve(root, v))) v = rel(ticketDir(v))
       state[k] = v
     }
     writeState(state)
@@ -375,7 +385,8 @@ function namesProject (text) {
 }
 
 // Work from before devflow saved flows: handoffs in the OS temp folder that name this project, and local ticket
-// folders no saved flow points at.
+// folders no saved flow points at. A wayfinder map's decision tickets aren't build work to pick up as a feature, so a
+// folder beside a map.md is left out; a big flow that uses the map lists it through its own tickets ref.
 function untracked (flows) {
   const out = []
   let names = []
@@ -392,12 +403,12 @@ function untracked (flows) {
       out.push({ time: mtimeMs, head: `handoff in the temp folder · ${day(mtimeMs)} · ${h ? h[1].trim() : n}`, next: `continue with: resume ${file}` })
     } catch {}
   }
-  const linked = new Set(flows.filter(f => f.tickets).map(f => path.resolve(root, f.tickets)))
+  const linked = new Set(flows.filter(f => f.tickets).map(f => ticketDir(f.tickets)))
   let efforts = []
   try { efforts = fs.readdirSync(path.join(root, '.scratch'), { withFileTypes: true }).filter(e => e.isDirectory()) } catch {}
   for (const e of efforts) {
     const dir = path.join(root, '.scratch', e.name, 'issues')
-    const t = !linked.has(dir) && ticketFiles(dir)
+    const t = !linked.has(dir) && !fs.existsSync(path.join(root, '.scratch', e.name, 'map.md')) && ticketFiles(dir)
     if (!t || !t.open.length) continue
     const time = Math.max(...t.all.map(f => fs.statSync(f).mtimeMs))
     out.push({ time, head: `tickets · ${day(time)} · ${e.name}: ${t.open.length} of ${t.all.length} open`, next: `continue with: ticket ${rel((t.ready[0] || t.open[0]))}` })
@@ -417,7 +428,7 @@ function closeMerged (flows) {
   const merged = []
   for (const f of flows) {
     if (f.status === 'done' || !f.pr) continue
-    const t = f.tickets && ticketFiles(path.resolve(root, f.tickets))
+    const t = f.tickets && ticketFiles(ticketDir(f.tickets))
     if (t && t.open.length) continue
     f.prState = prState(f.pr)
     if (f.prState !== 'MERGED') continue

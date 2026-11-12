@@ -46,6 +46,28 @@ test('ticket folders no flow points at are listed with the command that continue
   assert.doesNotMatch(out, /shipped/)
 })
 
+test('a big flow pointing at its wayfinder folder owns those tickets, and an unlinked map isn\'t offered', () => {
+  const root = tmp()
+  const effort = path.join(root, '.scratch', 'bot-linking')
+  write(path.join(effort, 'map.md'), '# Map: bot linking\n\nLabel: wayfinder:map\n')
+  write(path.join(effort, 'issues', '01-methods.md'), '# Methods\n\nType: research\nStatus: resolved\n')
+  write(path.join(effort, 'issues', '02-shape.md'), '# Shape\n\nType: grilling\nStatus: open\n')
+  write(path.join(root, '.scratch', 'loose', 'map.md'), '# Map: loose\n')
+  write(path.join(root, '.scratch', 'loose', 'issues', '01-q.md'), '# Q\n\nStatus: open\n')
+  run(root, 'flow', 'new', 'big', 'Bot linking')
+
+  // A state saved before devflow resolved the issues/ folder still lists once, with the right next ticket.
+  const file = path.join(root, '.devflow', 'flows', 'bot-linking', 'state.json')
+  fs.writeFileSync(file, JSON.stringify({ ...JSON.parse(fs.readFileSync(file, 'utf8')), tickets: '.scratch/bot-linking' }))
+  const out = run(root, 'flows')
+  assert.match(out, /^1\. bot-linking · Big · .*\n {3}next ticket: \.scratch\/bot-linking\/issues\/02-shape\.md \(1 of 2 open; check its blockers\)$/m)
+  assert.doesNotMatch(out, /Not saved|map\.md|loose/)
+
+  for (const ref of ['.scratch/bot-linking', '.scratch/bot-linking/map.md']) {
+    assert.match(run(root, 'flow', 'set', 'bot-linking', `tickets=${ref}`), /tickets=\.scratch\/bot-linking\/issues/)
+  }
+})
+
 test('flows survives broken state, keeps ids to their folders, and refuses paths outside .devflow/flows', () => {
   const root = tmp()
   run(root, 'flow', 'new', 'small', 'Rename tab')
