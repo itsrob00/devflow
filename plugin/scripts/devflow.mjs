@@ -36,6 +36,7 @@ function settings () {
   console.log(`no code comments: ${s.no_comments ? 'on' : 'off'}`)
   console.log(`multi-model review: ${s.adversarial_review}`)
   console.log(`small changes: ${s.small_changes}`)
+  console.log(`grilling: ${s.grilling}`)
   console.log(`session review: ${s.after_session}`)
 }
 

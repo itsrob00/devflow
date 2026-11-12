@@ -69,7 +69,7 @@ These four commands are all you need, in the order you'd use them:
 | `/devflow:continue` | Picks up unfinished work. `/devflow:start` with no task does the same. |
 | `/devflow:wrap` | Reviews the session and saves a handoff. |
 
-Once a flow is running, just talk to Claude. You don't retype `/devflow` with each message.
+Once a flow is running, just talk to Claude. You don't retype `/devflow` with each message. When it grills you about a design, say "that's enough" at any point and it takes its recommended answers for the rest, listed for you to overrule; say "only the important questions" up front to skip the minor ones.
 
 ### The four flows
 
@@ -119,6 +119,7 @@ Set these in `/plugin`, under devflow, Configure options. Saying otherwise in yo
 | No code comments | on | Claude adds no comments or docstrings to code it writes or edits, unless you ask. It leaves existing comments alone unless a change makes them wrong. |
 | Multi-model review | risky changes | When the feature flow adds `/interrogate`: on risky changes (auth, data, money, concurrency, migrations, public APIs), always, or never. |
 | Small changes | poteto-mode | `poteto-mode`, which uses far more tokens, or `direct`: make the change, run the closest tests, show the diff. |
+| Grilling | full | How much the design interview (`grilling`, in `grill-with-docs` and `wayfinder`) asks. `full`: every open question, most important first. `important`: only the questions that change the design, are hard to undo, or have no clear best answer; Claude takes its recommended answer for the rest and lists them at the end for you to overrule. Either way, say "that's enough" (or pick "stop here") at any point to get the same list for what's left. |
 | Session review | reflect | Which review `/devflow:wrap` runs: `retro`, `reflect`, or `handoff` (a handoff with no transcript review). On OpenCode, whose transcripts devflow can't read, it defaults to `handoff`. |
 
 Outside `/plugin`, put the same settings in a JSON file:
@@ -126,7 +127,7 @@ Outside `/plugin`, put the same settings in a JSON file:
 - `~/.config/devflow/settings.json` for every project
 - `.devflow/settings.json` at the project's git root for one project
 
-The keys are `git_guard` and `no_comments` (`true` or `false`), `adversarial_review` (`risky changes`, `always` or `never`), `small_changes` (`poteto-mode` or `direct`) and `after_session` (`retro`, `reflect` or `handoff`). For example: `{"small_changes": "direct"}`.
+The keys are `git_guard` and `no_comments` (`true` or `false`), `adversarial_review` (`risky changes`, `always` or `never`), `small_changes` (`poteto-mode` or `direct`), `grilling` (`full` or `important`) and `after_session` (`retro`, `reflect` or `handoff`). For example: `{"small_changes": "direct"}`.
 
 The project file overrides the user file, except that it can't turn the git guard off, so a cloned repo can't disarm it. In Claude Code, the `/plugin` options override both. devflow skips a missing or unreadable file and any value it doesn't know. `devflow settings` shows the result.
 
