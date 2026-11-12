@@ -20,6 +20,17 @@ Before anything else, see what the task is:
 
 Each step names a skill. Run it with `devflow show <skill>` and follow what it prints, not with the agent's own skill-loading tool (Claude Code's Skill tool) and not your own way. Show each skill once per conversation; if its text is still in context, follow it without showing it again. A step that looks obvious still runs its skill: an easy bug still gets `diagnosing-bugs`' red loop and `blast-radius`'s proven safety fact. Where a skill asks the user something, ask (as a multiple-choice question where the agent supports it, such as Claude Code's `AskUserQuestion`); don't answer for them. If the user said they're away, take the recommended option and say which.
 
+## Grilling
+
+`grilling` (which `grill-with-docs` and `wayfinder` also run) follows the grilling setting from `devflow settings`. If the user asks in this conversation for only the important questions, or for the full grilling, that wins for this run.
+
+- **full**: work the whole design tree, as the skill says.
+- **important**: ask only the questions whose answer changes the design or the scope, is costly to undo later, or has no answer you can recommend with confidence. Settle every other question with your recommended answer instead of asking it.
+
+Either way, order each round most important first. In the first round, tell the user once that they can stop at any point and you'll take your recommended answers for the rest. Where the agent asks multiple-choice questions, end each round with one more: keep going (with how many questions you still expect), or stop here and take the recommendations. A reply like "that's enough" or "you decide the rest" also stops it.
+
+When the user stops, or in important mode, settle each remaining question with your recommended answer, including ones the settled answers open up, and close with one list of those decisions and their answers, so the user can overrule any of them in one reply. Record them like answered ones (ADRs, glossary terms). That list ends the grilling: it counts as the empty frontier and the user's confirmation, unless the user overrules something, which you then settle before moving on. Keep the decisions you settled this way in the handoff's Open line if the flow continues in another session.
+
 ## Saved flows
 
 Each flow is saved under `.devflow/flows/<id>/`; the next session starts from it. Keep it current:

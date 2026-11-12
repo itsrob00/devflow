@@ -14,7 +14,7 @@ const bare = home => {
 }
 const settings = (cwd, env) => execFileSync('node', [script, 'settings'], { cwd, env, encoding: 'utf8' })
 
-const DEFAULTS = 'git guard: on\nno code comments: on\nmulti-model review: risky changes\nsmall changes: poteto-mode\nsession review: reflect\n'
+const DEFAULTS = 'git guard: on\nno code comments: on\nmulti-model review: risky changes\nsmall changes: poteto-mode\ngrilling: full\nsession review: reflect\n'
 
 test('a user settings file changes the settings in use', () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-settings-'))
@@ -22,7 +22,18 @@ test('a user settings file changes the settings in use', () => {
   fs.mkdirSync(project)
   assert.equal(settings(project, bare(home)), DEFAULTS)
   write(path.join(home, '.config', 'devflow', 'settings.json'), JSON.stringify({ adversarial_review: 'always', small_changes: 'direct', no_comments: false }))
-  assert.equal(settings(project, bare(home)), 'git guard: on\nno code comments: off\nmulti-model review: always\nsmall changes: direct\nsession review: reflect\n')
+  assert.equal(settings(project, bare(home)), 'git guard: on\nno code comments: off\nmulti-model review: always\nsmall changes: direct\ngrilling: full\nsession review: reflect\n')
+})
+
+test('the grilling setting takes full or important and ignores anything else', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-settings-'))
+  const project = path.join(home, 'project')
+  fs.mkdirSync(project)
+  write(path.join(home, '.config', 'devflow', 'settings.json'), JSON.stringify({ grilling: 'important' }))
+  assert.match(settings(project, bare(home)), /^grilling: important$/m)
+  write(path.join(project, '.devflow', 'settings.json'), JSON.stringify({ grilling: 'some' }))
+  assert.match(settings(project, bare(home)), /^grilling: important$/m)
+  assert.match(settings(project, { ...bare(home), CLAUDE_PLUGIN_OPTION_GRILLING: 'full' }), /^grilling: full$/m)
 })
 
 test('a project settings file overrides the user file, and the host plugin options override both on the host', () => {
@@ -31,7 +42,7 @@ test('a project settings file overrides the user file, and the host plugin optio
   fs.mkdirSync(project)
   write(path.join(home, '.config', 'devflow', 'settings.json'), JSON.stringify({ adversarial_review: 'always', small_changes: 'direct' }))
   write(path.join(project, '.devflow', 'settings.json'), JSON.stringify({ adversarial_review: 'never', after_session: 'retro' }))
-  assert.equal(settings(project, bare(home)), 'git guard: on\nno code comments: on\nmulti-model review: never\nsmall changes: direct\nsession review: retro\n')
+  assert.equal(settings(project, bare(home)), 'git guard: on\nno code comments: on\nmulti-model review: never\nsmall changes: direct\ngrilling: full\nsession review: retro\n')
 
   write(path.join(home, '.claude', 'settings.json'), JSON.stringify({ pluginConfigs: { 'devflow@devflow': { options: { adversarial_review: 'always' } } } }))
   assert.match(settings(project, bare(home)), /^multi-model review: always$/m)
@@ -54,7 +65,7 @@ test('a malformed settings file or value falls back to the layer below without a
   const r = spawnSync('node', [script, 'settings'], { cwd: project, env: bare(home), encoding: 'utf8' })
   assert.equal(r.status, 0)
   assert.equal(r.stderr, '')
-  assert.equal(r.stdout, 'git guard: on\nno code comments: on\nmulti-model review: risky changes\nsmall changes: direct\nsession review: reflect\n')
+  assert.equal(r.stdout, 'git guard: on\nno code comments: on\nmulti-model review: risky changes\nsmall changes: direct\ngrilling: full\nsession review: reflect\n')
 })
 
 test('settings, doctor, flows and the hooks give the same results from a project subfolder with no host env vars', () => {

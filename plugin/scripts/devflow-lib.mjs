@@ -10,12 +10,14 @@ export const DEFAULTS = {
   no_comments: true,
   adversarial_review: 'risky changes',
   small_changes: 'poteto-mode',
+  grilling: 'full',
   after_session: 'reflect'
 }
 
 const CHOICES = {
   adversarial_review: ['risky changes', 'always', 'never'],
   small_changes: ['poteto-mode', 'direct'],
+  grilling: ['full', 'important'],
   after_session: ['retro', 'reflect', 'handoff']
 }
 
