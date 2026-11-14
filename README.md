@@ -211,7 +211,7 @@ Cursor and OpenCode can run the cross-model review on a different model family f
 
 ## Contributing
 
-The plugin lives in `plugin/`, which is all that installing it copies. The tests stay at the repo root. `node --test` runs them for the git guard, the helper CLI, its hooks and the installer, and CI runs them on Ubuntu and Windows for every PR and push to main. Add a guard case for any command it should block or let through. To try a change to the installer or the plugin files, run `node plugin/scripts/devflow-install.mjs update --local`, which re-runs every recorded install from this checkout.
+The plugin lives in `plugin/`, which is all that installing it copies. The tests stay at the repo root. `node --test` runs them for the git guard, the helper CLI, its hooks and the installer, and CI runs them on Ubuntu and Windows for every PR and push to main. Add a guard case for any command it should block or let through. To try a change to the installer or the plugin files, run `node plugin/scripts/devflow-install.mjs update --local`, which re-runs every recorded install from this checkout. [CONTRIBUTING.md](CONTRIBUTING.md) says how the skills are laid out and how to write one.
 
 ## Credits
 
