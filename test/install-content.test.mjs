@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { sandbox, tree } from './helpers.mjs'
 
 const AGENTS = ['codex', 'cursor', 'opencode']
@@ -42,13 +43,16 @@ test('a project install of codex says every session, and one of cursor, which ha
 
 const SKILLS = { codex: '.codex/skills', cursor: '.cursor/skills', opencode: '.config/opencode/skills' }
 
+const shipped = dir => fs.readdirSync(dir, { withFileTypes: true }).reduce((n, e) => n + (e.isDirectory() ? shipped(path.join(dir, e.name)) : 1), 0)
+const SHIPPED = shipped(fileURLToPath(new URL('../plugin/skills/', import.meta.url)))
+
 for (const agent of AGENTS) {
   test(`no skill installed for ${agent} carries the Claude Code argument hint or names Claude Code as the way to run a step`, () => {
     const s = sandbox({ name: 'devflow-content' })
     assert.equal(s.run('install', '--agent', agent).status, 0)
     const dir = path.join(s.home, ...SKILLS[agent].split('/'))
     const files = Object.entries(tree(dir)).filter(([, text]) => text !== null)
-    assert.equal(files.length, 7)
+    assert.equal(files.length, SHIPPED)
     for (const [file, text] of files) {
       assert.doesNotMatch(text, /\$ARGUMENTS/, file)
       assert.doesNotMatch(text, /argument-hint/, file)
