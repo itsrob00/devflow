@@ -7,7 +7,7 @@ devflow's skills are adapted from two MIT-licensed projects. Each one is rewritt
 
 | devflow | Adapted from Matt Pocock's skills | Adapted from pstack |
 |---|---|---|
-| principles | | the `principle-*` skills, `poteto-mode` |
+| mode | | the `principle-*` skills, `poteto-mode` |
 | understand | | `how`, `why` |
 | decide | `grilling`, `grill-with-docs`, `domain-modeling`, `wayfinder` | |
 | prototype | `prototype` | |

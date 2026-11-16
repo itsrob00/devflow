@@ -15,7 +15,7 @@ const bare = home => {
 const settings = (cwd, env) => execFileSync('node', [script, 'settings'], { cwd, env, encoding: 'utf8' })
 
 const out = ({ comments = 'on', auto = 'on', review = 'risky changes', count = 3, model = 'auto (simple tickets: claude-sonnet-5-5, complex tickets: claude-opus-5-5)', tracker = 'auto (from the git remote)' } = {}) =>
-  `git guard: on\nno code comments: ${comments}\nautomatic flows: ${auto}\nadversarial review: ${review}\nsubagents at once: ${count}\nsubagent model: ${model}\nstrong model: claude-opus-5-5\ntracker: ${tracker}\n`
+  `git guard: on\nno code comments: ${comments}\ndevflow mode: ${auto}\nadversarial review: ${review}\nsubagents at once: ${count}\nsubagent model: ${model}\nstrong model: claude-opus-5-5\ntracker: ${tracker}\n`
 
 const fresh = () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-settings-'))
@@ -27,7 +27,7 @@ const fresh = () => {
 test('a user settings file changes the settings in use', () => {
   const { home, project, user } = fresh()
   assert.equal(settings(project, bare(home)), out())
-  write(user, JSON.stringify({ adversarial_review: 'always', no_comments: false, auto_flows: false, subagent_count: 5, subagent_model: 'haiku', tracker: 'files' }))
+  write(user, JSON.stringify({ adversarial_review: 'always', no_comments: false, mode: false, subagent_count: 5, subagent_model: 'haiku', tracker: 'files' }))
   assert.equal(settings(project, bare(home)), out({ comments: 'off', auto: 'off', review: 'always', count: 5, model: 'haiku', tracker: 'files' }))
 })
 
@@ -79,7 +79,7 @@ test('settings, flows and the hooks give the same results from a project subfold
   execFileSync('git', ['init', '-q'], { cwd: project })
   const env = bare(home)
   const run = (cwd, args, input) => execFileSync('node', [script, ...args], { cwd, env, encoding: 'utf8', input: input === undefined ? '' : JSON.stringify(input) })
-  write(path.join(project, '.devflow', 'settings.json'), JSON.stringify({ adversarial_review: 'never', no_comments: false, auto_flows: false }))
+  write(path.join(project, '.devflow', 'settings.json'), JSON.stringify({ adversarial_review: 'never', no_comments: false, mode: false }))
   run(project, ['flow', 'new', 'feature', 'CSV export'])
 
   for (const args of [['settings'], ['flows'], ['reminder'], ['rules']]) {

@@ -104,28 +104,36 @@ test('the session-start reminder names unfinished flows, and stays quiet without
   run(root, 'flow', 'new', 'small', 'Rename tab')
   run(root, 'flow', 'done', 'rename-tab')
   const out = JSON.parse(run(root, 'reminder'))
-  assert.equal(out.systemMessage, 'devflow: 1 unfinished flow here (Cart total). Say "keep going" to pick one up.')
+  assert.equal(out.systemMessage, "devflow: 1 unfinished flow here (Cart total). Run devflow's continue skill to pick one up (/devflow:continue in Claude Code).")
   assert.equal(out.hookSpecificOutput.hookEventName, 'SessionStart')
   assert.match(out.hookSpecificOutput.additionalContext, /don't guess the flow or read flow folders yourself/)
 })
 
-test('every session gets the automatic-flow rule and the no-comments rule, each until its setting is turned off', () => {
+test('every session gets devflow mode and the no-comments rule, each until its setting is turned off', () => {
   const root = tmp()
   const cfg = path.join(root, 'cfg')
-  const env = opts => ({ ...process.env, HOME: root, USERPROFILE: root, CLAUDE_CONFIG_DIR: cfg, CLAUDE_PLUGIN_OPTION_NO_COMMENTS: '', CLAUDE_PLUGIN_OPTION_AUTO_FLOWS: '', ...opts })
+  const env = opts => ({ ...process.env, HOME: root, USERPROFILE: root, CLAUDE_CONFIG_DIR: cfg, CLAUDE_PLUGIN_OPTION_NO_COMMENTS: '', CLAUDE_PLUGIN_OPTION_MODE: '', ...opts })
   const rules = (opts = {}) => execFileSync('node', [script, 'rules'], { cwd: root, encoding: 'utf8', env: env(opts) })
   const context = (opts = {}) => JSON.parse(rules(opts)).hookSpecificOutput.additionalContext
+  const mode = fs.readFileSync(path.join(path.dirname(path.dirname(script)), 'mode.md'), 'utf8').trim()
   assert.equal(JSON.parse(rules()).hookSpecificOutput.hookEventName, 'SessionStart')
-  const both = context()
-  assert.match(both, /^devflow: run development work in this project as a devflow flow without being asked\. When the user asks you to build, change or fix code, read .*skills[\\/]start[\\/]SKILL\.md and follow it \(in devflow's files, \$\{CLAUDE_PLUGIN_ROOT\} means [^)]+\) with their message as the task, before doing anything else\./)
-  assert.match(both, /"just do it" or "no flow"\.\n\nDon't add comments/)
-  assert.match(context({ CLAUDE_PLUGIN_OPTION_AUTO_FLOWS: 'false' }), /^Don't add comments/)
-  assert.doesNotMatch(context({ CLAUDE_PLUGIN_OPTION_NO_COMMENTS: 'false' }), /comments/)
-  assert.equal(rules({ CLAUDE_PLUGIN_OPTION_NO_COMMENTS: 'false', CLAUDE_PLUGIN_OPTION_AUTO_FLOWS: 'false' }), '')
-  assert.match(context({ DEVFLOW_AGENT: 'codex' }), /^devflow: [^\n]*use the devflow-start skill with their message as the task/)
-  write(path.join(cfg, 'settings.json'), JSON.stringify({ pluginConfigs: { 'devflow@devflow': { options: { no_comments: false, auto_flows: false } } } }))
+  assert.equal(context(), `${mode}\n\nDon't add comments or docstrings to code you write or edit, including ones explaining the change, unless the user asks. Leave existing comments alone unless your change makes them wrong.`)
+  assert.match(context({ CLAUDE_PLUGIN_OPTION_MODE: 'false' }), /^Don't add comments/)
+  assert.equal(context({ CLAUDE_PLUGIN_OPTION_NO_COMMENTS: 'false' }), mode)
+  assert.equal(rules({ CLAUDE_PLUGIN_OPTION_NO_COMMENTS: 'false', CLAUDE_PLUGIN_OPTION_MODE: 'false' }), '')
+  assert.ok(context({ DEVFLOW_AGENT: 'codex' }).startsWith(`${mode}\n\nDon't add comments`))
+  write(path.join(cfg, 'settings.json'), JSON.stringify({ pluginConfigs: { 'devflow@devflow': { options: { no_comments: false, mode: false } } } }))
   assert.equal(rules(), '')
-  assert.match(execFileSync('node', [script, 'settings'], { cwd: root, encoding: 'utf8', env: env() }), /^no code comments: off\nautomatic flows: off$/m)
+  assert.match(execFileSync('node', [script, 'settings'], { cwd: root, encoding: 'utf8', env: env() }), /^no code comments: off\ndevflow mode: off$/m)
+})
+
+test('devflow mode stays small, names no command or host, and keeps its seven rules and six steps', () => {
+  const mode = fs.readFileSync(path.join(path.dirname(path.dirname(script)), 'mode.md'), 'utf8')
+  assert.ok(mode.split(/\s+/).length <= 450, `${mode.split(/\s+/).length} words`)
+  assert.doesNotMatch(mode, /Claude|\/devflow|CLAUDE_PLUGIN_ROOT|AskUserQuestion|TodoWrite/)
+  assert.equal(mode.match(/^7\. \*\*/gm).length, 1)
+  assert.equal(mode.match(/^6\. \*\*/gm).length, 2)
+  assert.doesNotMatch(mode, /^8\. /m)
 })
 
 test('a conversation is linked to the flow its commands work on, reminded of it on every message, and let go when it is done', () => {

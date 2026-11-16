@@ -1,7 +1,8 @@
 ---
 name: start
-description: Run development work as a devflow flow. Picks the flow (small change, feature, bug or big job), runs each step's skill, stops once to show the plan, then builds, proves and ships. With nothing, or "keep going", picks up unfinished work. For any request to build, change or fix code.
+description: Run development work as a devflow flow. Picks the flow (small change, feature, bug or big job), runs each step's skill, stops once to show the plan, then builds, proves and ships. With nothing, picks up unfinished work.
 argument-hint: "[what you want done, or nothing to keep going]"
+disable-model-invocation: true
 ---
 
 Task (a hint the host fills in): $ARGUMENTS
@@ -10,7 +11,7 @@ If that line is empty or shows no text, the task is in the user's message: take 
 
 `devflow` means `node "${CLAUDE_PLUGIN_ROOT}/scripts/devflow.mjs"`, run from the project root.
 
-Read `${CLAUDE_PLUGIN_ROOT}/principles.md` once per conversation. Its seven rules apply to every step.
+If devflow mode's seven rules aren't in context, read `${CLAUDE_PLUGIN_ROOT}/mode.md`. They apply to every step. Inside a flow, the flow's steps replace the mode's own six.
 
 ## 1. Keep going, or start
 
@@ -58,7 +59,7 @@ With the git guard on, `git push`, `reset --hard`, `clean -f`, `branch -D` and c
 
 - A flow with a pull request is finished when it merges. `devflow flows` notices and marks it done, so don't mark it yourself.
 - A flow with no pull request: `devflow flow done <id>`.
-- If the session ends with work left, the saved step is enough. Tell the user that "keep going" in any later session picks it up.
+- If the session ends with work left, the saved step is enough. Tell the user that devflow's continue skill picks it up in any later session (`/devflow:continue` in Claude Code).
 
 Report in a few lines: what changed, the evidence (the test run, the safety fact, the proof from the running app), the decisions you took for the user, any step you skipped and why, and what is left for them.
 

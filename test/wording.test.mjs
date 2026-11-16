@@ -32,21 +32,21 @@ test('devflow skill texts name a host-only tool or command only beside the Claud
   }
 })
 
-test("the start skill keeps $ARGUMENTS as a hint and takes the task from the user's message when it is empty or unfilled", () => {
-  const start = texts()['start/SKILL.md']
-  assert.match(start, /\$ARGUMENTS/)
-  assert.match(start, /user's message/)
-})
-
-test('only the start skill can start by itself, and every other skill waits to be named', () => {
-  for (const [name, text] of Object.entries(texts())) {
-    if (!name.endsWith('/SKILL.md')) continue
-    if (name === 'start/SKILL.md') assert.doesNotMatch(text, /^disable-model-invocation:/m)
-    else assert.match(text, /^disable-model-invocation: true$/m, name)
+test("each entry point keeps $ARGUMENTS as a hint and takes the task from the user's message when it is empty or unfilled", () => {
+  const all = texts()
+  for (const entry of ['start', 'continue']) {
+    assert.match(all[`${entry}/SKILL.md`], /\$ARGUMENTS/, entry)
+    assert.match(all[`${entry}/SKILL.md`], /user's message/, entry)
   }
 })
 
-test('every skill a flow names exists, and only flow files and the start skill name another skill by its file', () => {
+test('no skill starts by itself: every one waits for its command', () => {
+  for (const [name, text] of Object.entries(texts())) {
+    if (name.endsWith('/SKILL.md')) assert.match(text, /^disable-model-invocation: true$/m, name)
+  }
+})
+
+test('every skill a flow names exists, and only the entry points and flow files name another skill by its file', () => {
   const all = texts()
   const skills = new Set(Object.keys(all).filter(n => n.endsWith('/SKILL.md')).map(n => n.split('/')[0]))
   for (const flow of ['small', 'feature', 'bug', 'big']) {
@@ -55,7 +55,7 @@ test('every skill a flow names exists, and only flow files and the start skill n
     for (const [, name] of text.matchAll(/`([a-z]+)`/g)) assert.ok(skills.has(name), `${flow}.md names ${name}`)
   }
   for (const [name, text] of Object.entries(all)) {
-    if (name.startsWith('start/')) continue
+    if (name.startsWith('start/') || name.startsWith('continue/')) continue
     assert.doesNotMatch(text, /CLAUDE_PLUGIN_ROOT|skills\/[a-z]+\/SKILL\.md/, name)
   }
 })

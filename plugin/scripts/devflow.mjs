@@ -7,7 +7,7 @@
 //   devflow flow show <id>             everything a session needs to continue that flow, and nothing from the others
 //   devflow flow done <id>             mark a flow finished
 //   devflow reminder                   SessionStart hook: tells the user when there are flows to continue
-//   devflow rules                      SessionStart hook: the standing rules the settings turn on, for every session
+//   devflow rules                      SessionStart hook: devflow mode and the no-comments rule, when their settings are on
 //   devflow track                      PostToolUse hook: links this conversation to the flow its devflow flow commands work on
 //   devflow active                     UserPromptSubmit and SessionStart hook: reminds the agent of the linked flow on every message
 import fs from 'node:fs'
@@ -29,7 +29,7 @@ function settings () {
   const { fast, strong } = AGENTS[installedAgent].closest
   console.log(`git guard: ${s.git_guard ? 'on' : 'off'}`)
   console.log(`no code comments: ${s.no_comments ? 'on' : 'off'}`)
-  console.log(`automatic flows: ${s.auto_flows ? 'on' : 'off'}`)
+  console.log(`devflow mode: ${s.mode ? 'on' : 'off'}`)
   console.log(`adversarial review: ${s.adversarial_review}`)
   console.log(`subagents at once: ${s.subagent_count}`)
   console.log(`subagent model: ${s.subagent_model === 'auto' ? `auto (simple tickets: ${fast}, complex tickets: ${strong})` : s.subagent_model}`)
@@ -234,13 +234,16 @@ function emit (event, additionalContext, systemMessage) {
   console.log(JSON.stringify(agentFor(hookFrom).context(event, additionalContext, systemMessage)))
 }
 
+const PLUGIN = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/, '')
+
+// The agent a hook's message is worded for: the one the hook names, else the one devflow was installed for.
+const wordedFor = ADAPTERS[hookFrom] ? hookFrom : installedAgent
+
 // How a hook's message points at the start skill: by name on an agent devflow was installed for, else by its file
 // in the plugin. That file is read directly, so the message also says what the plugin root is.
 function startSkill () {
-  const named = ADAPTERS[hookFrom] ? hookFrom : installedAgent
-  if (ADAPTERS[named]) return `use the ${ADAPTERS[named].entrySkill.replace('{name}', 'start')} skill`
-  const plugin = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/, '')
-  return `read ${path.join(plugin, 'skills', 'start', 'SKILL.md')} and follow it (in devflow's files, \${CLAUDE_PLUGIN_ROOT} means ${plugin})`
+  if (ADAPTERS[wordedFor]) return `use the ${ADAPTERS[wordedFor].entrySkill.replace('{name}', 'start')} skill`
+  return `read ${path.join(PLUGIN, 'skills', 'start', 'SKILL.md')} and follow it (in devflow's files, \${CLAUDE_PLUGIN_ROOT} means ${PLUGIN})`
 }
 
 // SessionStart hook: one line for the user, and the same for the agent, when this project has work to continue.
@@ -251,18 +254,19 @@ function reminder () {
   if (!n) return
   const titles = found.active.slice(0, 3).map(f => f.title)
   const more = n - titles.length
-  const line = `devflow: ${n} unfinished flow${n === 1 ? '' : 's'} here (${titles.join(', ')}${more ? `, ${more} more` : ''}). Say "keep going" to pick one up.`
-  emit('SessionStart', `${line} When the user asks to keep going, ${startSkill()} with that as the task; don't guess the flow or read flow folders yourself.`, line)
+  const how = ADAPTERS[wordedFor] ? `${ADAPTERS[wordedFor].invoke.replace('{name}', 'continue')} in ${AGENTS[wordedFor].label}` : '/devflow:continue in Claude Code'
+  const line = `devflow: ${n} unfinished flow${n === 1 ? '' : 's'} here (${titles.join(', ')}${more ? `, ${more} more` : ''}). Run devflow's continue skill to pick one up (${how}).`
+  emit('SessionStart', `${line} When the user asks to keep going without it, ${startSkill()} with that as the task; don't guess the flow or read flow folders yourself.`, line)
 }
 
 const NO_COMMENTS = "Don't add comments or docstrings to code you write or edit, including ones explaining the change, unless the user asks. Leave existing comments alone unless your change makes them wrong."
 
-// SessionStart hook, also after compaction, so the rules outlive the summary.
+// SessionStart hook, also after compaction, so the mode and the rule outlive the summary.
 function rules () {
   const s = loadSettings(root)
   const out = []
-  if (s.auto_flows) {
-    out.push(`devflow: run development work in this project as a devflow flow without being asked. When the user asks you to build, change or fix code, ${startSkill()} with their message as the task, before doing anything else. Don't start a flow for a question, for work that changes no code, or when the user says "just do it" or "no flow".`)
+  if (s.mode) {
+    try { out.push(fs.readFileSync(path.join(PLUGIN, 'mode.md'), 'utf8').trim()) } catch {}
   }
   if (s.no_comments) out.push(NO_COMMENTS)
   if (out.length) emit('SessionStart', out.join('\n\n'))

@@ -1,12 +1,12 @@
 # devflow
 
-**A development workflow for coding agents. Ask for a change and devflow plans it, stops once for your go, then builds, checks, proves and ships it. It's a Claude Code plugin, and it also installs on Codex CLI, Cursor and OpenCode.**
+**A development workflow for coding agents, in two parts. A short working mode is always on, so a plain request is done carefully with no ceremony. A command runs the work as a flow that plans it, stops once for your go, then builds, checks, proves and ships it. It's a Claude Code plugin, and it also installs on Codex CLI, Cursor and OpenCode.**
 
 ```
-add CSV export to the reports page
+/devflow:start add CSV export to the reports page
 ```
 
-There is no command to remember. devflow sorts the request into a small change, a feature, a bug or a big job and runs that flow's steps in order. Each step is a short skill that ships with devflow. Not on Claude Code? See [Other coding agents](#other-coding-agents).
+Every step of a flow is a short skill that ships with devflow. Not on Claude Code? See [Other coding agents](#other-coding-agents).
 
 ## Quick start
 
@@ -19,27 +19,51 @@ You need Claude Code, Node 18 or later, and git.
    /plugin install devflow@devflow
    ```
 
-2. **Ask for what you want**, in any repo. There is nothing to set up per repo.
+2. **Work.** There is nothing to set up per repo. Ask for something plainly and it runs under devflow mode. Or start a flow:
 
-3. **Pick it up later** by saying "keep going" in any session.
+   ```
+   /devflow:start <what you want done>
+   ```
+
+3. **Pick a flow up later**, in any session:
+
+   ```
+   /devflow:continue
+   ```
 
 ## Use
 
-```
-rename the Settings tab to Preferences         → Small
-add CSV export to the reports page             → Feature
-the cart total ignores quantity                → Bug
-migrate the API client from axios to fetch     → Big
-```
+| You type | What happens |
+|---|---|
+| a plain request | It is worked under **devflow mode**. No flow, no saved state, no stop. |
+| `/devflow:start <task>` | A flow for the task. With no task it picks up unfinished work. |
+| `/devflow:continue` | Picks up unfinished work. |
+| `/devflow:learn` | Looks back over a session that went sideways and turns what went wrong into a check, a type or a test. |
 
-What to expect:
+### devflow mode
+
+The mode is about 400 words loaded into every session: seven rules and six steps. It is devflow's own take on pstack's `poteto-mode`, cut down to what changes how the agent works.
+
+- **The rules:** decide and proceed, smallest change that solves it, prove it on the real thing, fix causes not symptoms, small units each checked before the next, keep the main context small, fix repeated mistakes with structure.
+- **The steps for a plain request:** say the goal in one line, read before writing, ask at most once, build test-first, prove it, report with evidence. It commits or pushes only when you ask.
+- **When the work is bigger** than the mode suits, it says once that `/devflow:start` would run it as a flow, and carries on unless you switch.
+
+The whole text is in [plugin/mode.md](plugin/mode.md). Turn it off with the devflow mode setting.
+
+### Flows
+
+```
+/devflow:start rename the Settings tab to Preferences         → Small
+/devflow:start add CSV export to the reports page             → Feature
+/devflow:start the cart total ignores quantity                → Bug
+/devflow:start migrate the API client from axios to fetch     → Big
+```
 
 - **It asks once.** devflow looks facts up itself and takes the decisions it can recommend with confidence. The ones that are yours come in one round of at most five questions, each with a recommended answer. Say "grill me" for a full interview.
 - **It stops once.** A feature or a big job shows you one screen: what done means, what changes, the decisions, and for a big job the tickets. It waits for your go. A reply that changes the plan counts as the go.
 - **Then it runs to the end.** Nothing else waits on you except a decision that is yours or an action that can't be undone. The pull request lists every decision taken for you, so you can overrule any of them in review.
-- **To skip the flow**, say "just do it" or "no flow". Questions and work that changes no code never start one.
 
-`/devflow:start <task>` starts a flow by hand, and with no task it picks up unfinished work. You only need it with automatic flows turned off.
+Once a flow is running, just talk. You don't retype the command with each message.
 
 ### The four flows
 
@@ -63,13 +87,13 @@ What to expect:
 3. Each unblocked ticket is built by a fresh subagent in its own worktree, several at once. The main session reads every diff and reruns its tests before merging it.
 4. One branch, one commit per ticket, one pull request at the end
 
-Every step is also a skill you can run by itself, such as `/devflow:understand` or `/devflow:review`. `/devflow:learn` looks back over a session that went sideways and turns what went wrong into a check, a type or a test. `/devflow:wizard` writes a script for steps only you can do.
+Every step is also a skill you can run by itself, such as `/devflow:understand` or `/devflow:review`. `/devflow:wizard` writes a script for steps only you can do.
 
 ### Picking up later
 
 devflow saves every flow in the project under `.devflow/flows/` (git-ignored): its step, branch, plan and decision list, and a big job's tickets when they are kept as files.
 
-- Say "keep going" in any session. With several unfinished flows it asks which.
+- `/devflow:continue` in any session. With several unfinished flows it asks which, and `/devflow:continue <id>` skips the question.
 - While a conversation is on a flow, devflow reminds the agent of it with every message, so a plain reply like "go with B" stays part of the flow.
 - A flow that ships as a pull request is marked done when it merges (devflow checks with `gh`).
 - When a session starts in a project with unfinished flows, devflow says so in one line.
@@ -90,7 +114,7 @@ Set these in `/plugin`, under devflow, Configure options. Saying otherwise in yo
 |---|---|---|
 | Git safety hook | on | While a flow is running in the conversation, blocks `git push`, `reset --hard`, `clean -f`, `branch -D`, and commands that discard the whole working tree (`checkout .`, `restore .`, `checkout -f`, `switch --discard-changes`). The agent gives you the command to run instead. Conversations not on a flow aren't affected. |
 | No code comments | on | The agent adds no comments or docstrings to code it writes or edits, unless you ask. It leaves existing comments alone unless a change makes them wrong. |
-| Automatic flows | on | Starts a flow whenever you ask for a code change. Off: flows start only with `/devflow:start`. |
+| devflow mode | on | Loads the mode into every session, so plain requests are worked by its rules and steps. Off: only flows carry devflow's rules. |
 | Adversarial review | risky changes | When two fresh subagents try to break the change, keeping only findings a run proves: on risky changes (auth, permissions, payments, data migration or deletion, concurrency, public APIs), always, or never. |
 | Subagents at once | 3 | How many tickets of a big job are built at the same time. 1 to 10. |
 | Subagent model | auto | The model that builds a big job's tickets. `auto` uses the agent's fast model for tickets marked simple and its strong model for ones marked complex (Sonnet and Opus on Claude Code). Any model name is used for every ticket. |
@@ -101,14 +125,15 @@ Outside `/plugin`, put the same settings in a JSON file:
 - `~/.config/devflow/settings.json` for every project
 - `.devflow/settings.json` at the project's git root for one project
 
-The keys are `git_guard`, `no_comments` and `auto_flows` (`true` or `false`), `adversarial_review` (`risky changes`, `always` or `never`), `subagent_count` (a number), `subagent_model` (`auto` or a model name) and `tracker` (`auto`, `github`, `gitlab` or `files`). For example: `{"subagent_count": 5}`.
+The keys are `git_guard`, `no_comments` and `mode` (`true` or `false`), `adversarial_review` (`risky changes`, `always` or `never`), `subagent_count` (a number), `subagent_model` (`auto` or a model name) and `tracker` (`auto`, `github`, `gitlab` or `files`). For example: `{"subagent_count": 5}`.
 
 The project file overrides the user file, except that it can't turn the git guard off, so a cloned repo can't disarm it. In Claude Code, the `/plugin` options override both. devflow skips a missing or unreadable file and any value it doesn't know. `devflow settings` shows the result, with the fast and strong model `auto` uses on your agent.
 
 ### Coming from 1.2
 
 - devflow no longer installs Matt Pocock's skills or pstack. In Claude Code, remove the two old plugins: `/plugin uninstall devflow-matt@devflow` and `/plugin uninstall devflow-pstack@devflow`. On other agents, `update` removes the skills the old install added.
-- `/devflow:setup`, `/devflow:continue` and `/devflow:wrap` are gone. Nothing needs setting up, "keep going" continues, and `/devflow:learn` is the session review.
+- `/devflow:setup` and `/devflow:wrap` are gone. Nothing needs setting up, and `/devflow:learn` is the session review. `/devflow:start` and `/devflow:continue` stay.
+- Small changes no longer run pstack's `poteto-mode`. devflow mode is always on instead, with or without a flow.
 - The `small_changes`, `grilling` and `after_session` settings are gone and are ignored if still set.
 - Flows saved by 1.2 still list, with their old step names.
 
@@ -143,15 +168,15 @@ npx github:itsrob00/devflow update [--agent <name>] [--project]
 npx github:itsrob00/devflow uninstall --agent <name> [--project]
 ```
 
-Flows start by themselves here too. To start one by hand, or to run one step, use the skills the way your agent runs skills:
+Run the skills the way your agent runs skills, with the task after them or in your next message. devflow mode is loaded at session start here too.
 
-| Agent | Start, or pick up with no task | One step |
+| Agent | Start | Pick up later |
 |---|---|---|
-| Codex CLI | `$devflow-start <task>` | `$devflow-review` |
-| Cursor | `/devflow-start <task>` | `/devflow-review` |
-| OpenCode | `@devflow-start <task>` | `@devflow-review` |
+| Codex CLI | `$devflow-start <task>` | `$devflow-continue` |
+| Cursor | `/devflow-start <task>` | `/devflow-continue` |
+| OpenCode | `@devflow-start <task>` | `@devflow-continue` |
 
-The flows and their steps work as described above.
+The step skills follow the same pattern, such as `$devflow-review`.
 
 ### Before the first run
 

@@ -208,7 +208,7 @@ test('update says so when nothing is recorded, and changes nothing', () => {
 })
 
 const SKILL_HOMES = { codex: ['.codex', 'skills'], opencode: ['.config', 'opencode', 'skills'] }
-const INVOKES = { codex: '$devflow-learn', opencode: '@devflow-learn' }
+const INVOKES = { codex: '$devflow-continue', opencode: '@devflow-continue' }
 
 for (const [first, second] of [['codex', 'opencode'], ['opencode', 'codex']]) {
   test(`${first} and ${second} installed in one user scope: each keeps its own skills when the other is uninstalled`, () => {

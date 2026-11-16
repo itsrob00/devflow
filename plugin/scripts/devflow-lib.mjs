@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 export const DEFAULTS = {
   git_guard: true,
   no_comments: true,
-  auto_flows: true,
+  mode: true,
   adversarial_review: 'risky changes',
   subagent_count: 3,
   subagent_model: 'auto',
