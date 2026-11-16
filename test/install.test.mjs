@@ -26,7 +26,8 @@ test('install --agent codex puts every file where Codex reads it and records the
   for (const dir of ['scripts', 'hooks']) {
     for (const f of fs.readdirSync(path.join(source, dir))) assert.equal(fs.readFileSync(path.join(runtime, dir, f), 'utf8'), fs.readFileSync(path.join(source, dir, f), 'utf8'))
   }
-  for (const n of ['start', 'continue', 'setup', 'wrap']) {
+  for (const f of ['principles.md', 'CREDITS.md']) assert.equal(fs.readFileSync(path.join(runtime, f), 'utf8'), fs.readFileSync(path.join(source, f), 'utf8'))
+  for (const n of ['start', 'learn', 'plan', 'build']) {
     const text = fs.readFileSync(path.join(skills, `devflow-${n}`, 'SKILL.md'), 'utf8')
     assert.match(text, new RegExp(`^name: devflow-${n}$`, 'm'))
     assert.doesNotMatch(text, /CLAUDE_PLUGIN_ROOT/)
@@ -34,10 +35,10 @@ test('install --agent codex puts every file where Codex reads it and records the
   }
   const start = fs.readFileSync(path.join(skills, 'devflow-start', 'SKILL.md'), 'utf8')
   assert.ok(start.includes(`node "${path.join(scripts, 'devflow.mjs')}"`))
-  assert.ok(start.includes(path.join(skills, 'devflow-continue', 'SKILL.md')))
+  assert.ok(start.includes(path.join(skills, 'devflow-x', 'SKILL.md')))
   assert.ok(start.includes(path.join(skills, 'devflow-start', 'flows')))
-  assert.ok(start.includes('`$devflow-continue`'))
-  for (const f of ['feature', 'bug', 'big']) assert.ok(fs.existsSync(path.join(skills, 'devflow-start', 'flows', `${f}.md`)))
+  assert.ok(start.includes('`$devflow-learn`'))
+  for (const f of ['small', 'feature', 'bug', 'big']) assert.ok(fs.existsSync(path.join(skills, 'devflow-start', 'flows', `${f}.md`)))
 
   const hooks = readJson(path.join(s.home, '.codex', 'hooks.json')).hooks
   const command = (event, i = 0) => hooks[event][i].hooks[0].command

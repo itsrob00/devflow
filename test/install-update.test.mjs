@@ -20,7 +20,7 @@ test('a --project install writes only inside the repo, with paths relative to it
   const start = fs.readFileSync(p('.agents', 'skills', 'devflow-start', 'SKILL.md'), 'utf8')
   assert.match(start, /^name: devflow-start$/m)
   assert.ok(start.includes('node ".devflow/runtime/codex/scripts/devflow.mjs"'))
-  assert.ok(start.includes('.agents/skills/devflow-continue/SKILL.md'))
+  assert.ok(start.includes('.agents/skills/devflow-x/SKILL.md'))
   assert.deepEqual(readJson(p('.devflow', 'runtime', 'codex', 'agent.json')), { agent: 'codex', scope: 'project' })
   assert.ok(fs.existsSync(p('.devflow', 'runtime', 'codex', 'scripts', 'devflow-guard.mjs')))
   assert.ok(fs.existsSync(p('.devflow', 'runtime', 'codex', 'hooks', 'hooks.json')))
@@ -286,7 +286,7 @@ test('uninstall keeps the lock file and folder while skills from elsewhere remai
 })
 
 const SKILL_HOMES = { codex: ['.codex', 'skills'], opencode: ['.config', 'opencode', 'skills'] }
-const INVOKES = { codex: '$devflow-continue', opencode: '@devflow-continue' }
+const INVOKES = { codex: '$devflow-learn', opencode: '@devflow-learn' }
 
 for (const [first, second] of [['codex', 'opencode'], ['opencode', 'codex']]) {
   test(`${first} and ${second} installed in one user scope: each keeps its own skills when the other is uninstalled, and the upstream skills stay until the last one goes`, () => {
@@ -413,6 +413,6 @@ test('devflow active works from an installed runtime copy, pointing at the insta
   assert.equal(active.status, 0, active.stderr)
   const text = JSON.parse(active.stdout).hookSpecificOutput.additionalContext
   assert.match(text, /^devflow: on flow csv-export \(Feature: CSV export\)/)
-  assert.ok(text.includes('devflow show devflow-start'))
+  assert.ok(text.includes("If the start skill isn't in context, use the devflow-start skill, then run devflow flow show csv-export."))
   assert.doesNotMatch(text, /SKILL\.md/)
 })

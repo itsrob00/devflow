@@ -1,27 +1,21 @@
 #!/usr/bin/env node
 // devflow helper. Run from the project root.
-//   devflow settings                   the plugin options in use
-//   devflow find <skill>...            the SKILL.md devflow runs for each skill, or MISSING
-//   devflow show <skill>               print that SKILL.md, with its folder for resolving relative links
-//   devflow doctor [flow]              what is installed and set up, for one flow or all of them; runs git init if the folder isn't a repo
-//   devflow pstack-models              on the original host, write pstack's per-machine model settings with Claude models, or swap Grok out of existing ones; on other agents, write nothing and report which models run
-//   devflow flows                      unfinished flows to continue, newest first, then older work devflow didn't track; marks flows whose PR merged done
+//   devflow settings                   the settings in use
+//   devflow flows                      unfinished flows, newest first; marks flows whose PR merged done
 //   devflow flow new <flow> <title>    save a new flow; prints its id and folder
-//   devflow flow set <id> key=value... update a saved flow: step, next, tickets, pr, title, status, flow
+//   devflow flow set <id> key=value... update a saved flow: step, next, branch, tickets, pr, title, status, flow
 //   devflow flow show <id>             everything a session needs to continue that flow, and nothing from the others
 //   devflow flow done <id>             mark a flow finished
-//   devflow flow handoff <id> <file>   move a handoff written elsewhere into the flow
 //   devflow reminder                   SessionStart hook: tells the user when there are flows to continue
-//   devflow rules                      SessionStart hook: the coding rules the settings turn on, for every session
+//   devflow rules                      SessionStart hook: the standing rules the settings turn on, for every session
 //   devflow track                      PostToolUse hook: links this conversation to the flow its devflow flow commands work on
-//   devflow active                     UserPromptSubmit and SessionStart hook: reminds Claude of the linked flow on every message
+//   devflow active                     UserPromptSubmit and SessionStart hook: reminds the agent of the linked flow on every message
 import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { ADAPTERS } from './devflow-adapters.mjs'
-import { AGENTS, CLAUDE_CODE, FLOWS, PACKS, SKILLS, agentFor, claudeDir, currentAgent, findSkill, hookAgent, hookPayload, installAdvice, installedSkills, loadSettings, modelFamily, packSkills, projectRoot } from './devflow-lib.mjs'
+import { AGENTS, agentFor, currentAgent, hookAgent, hookPayload, loadSettings, projectRoot } from './devflow-lib.mjs'
 
 // Hooks read their payload once here; the project folder comes from it, or from where the command runs.
 const HOOKS = ['reminder', 'rules', 'track', 'active']
@@ -32,203 +26,22 @@ const root = projectRoot(input)
 
 function settings () {
   const s = loadSettings(root)
+  const { fast, strong } = AGENTS[installedAgent].closest
   console.log(`git guard: ${s.git_guard ? 'on' : 'off'}`)
   console.log(`no code comments: ${s.no_comments ? 'on' : 'off'}`)
-  console.log(`multi-model review: ${s.adversarial_review}`)
-  console.log(`small changes: ${s.small_changes}`)
-  console.log(`grilling: ${s.grilling}`)
-  console.log(`session review: ${s.after_session}`)
+  console.log(`automatic flows: ${s.auto_flows ? 'on' : 'off'}`)
+  console.log(`adversarial review: ${s.adversarial_review}`)
+  console.log(`subagents at once: ${s.subagent_count}`)
+  console.log(`subagent model: ${s.subagent_model === 'auto' ? `auto (simple tickets: ${fast}, complex tickets: ${strong})` : s.subagent_model}`)
+  console.log(`strong model: ${strong}`)
+  console.log(`tracker: ${s.tracker === 'auto' ? 'auto (from the git remote)' : s.tracker}`)
 }
 
-function show (name) {
-  if (!name) { console.error('usage: devflow show <skill>'); process.exit(2) }
-  const s = findSkill(name, installedSkills(root))
-  if (!s) {
-    console.log(`${name}\tMISSING${SKILLS[name] ? `, install ${PACKS[SKILLS[name]].title}: ${installAdvice(SKILLS[name], installedAgent)}` : ''}`)
-    process.exit(1)
-  }
-  const extra = fs.readdirSync(path.dirname(s.file)).filter(n => n !== 'SKILL.md')
-  console.log(`# ${name}: ${s.file}${extra.length ? ` (its folder also has ${extra.join(', ')})` : ''}`)
-  console.log(`# Read all of it and follow it as if the user had asked for the ${name} skill, phases and completion checklist included. Relative links resolve against its folder. Run any skill it calls with devflow show too, not with a skill-loading tool (Claude Code's Skill tool, for one).`)
-  console.log(fs.readFileSync(s.file, 'utf8'))
-}
-
-function pstackModels () {
-  if (installedAgent !== CLAUDE_CODE) {
-    const r = offHostModels()
-    const where = r.file || "pstack's defaults"
-    const state = r.blocked ? `${r.blocked} of ${r.total} entries can't run on ${r.label}; devflow pstack-models shows what each maps to` : `all run on ${r.label}`
-    return { ok: true, line: `pstack models: ${where} (${state})` }
-  }
-  // /setup-pstack writes to ~/.claude/rules in Claude Code; older versions wrote to ~/.agents.
-  const file = [path.join(claudeDir(), 'rules', 'pstack-models.md'), path.join(os.homedir(), '.agents', 'pstack-models.md')].find(f => fs.existsSync(f))
-  let text
-  try { text = fs.readFileSync(file, 'utf8') } catch { return { ok: false, line: 'pstack models: not set. Run devflow pstack-models (/setup-pstack defaults to Grok, which Claude Code can\'t run).' } }
-  const roles = text.split('\n').filter(l => /^[a-z][^:#]*:/.test(l.trim()))
-  const grok = roles.filter(l => /grok/i.test(l)).map(l => l.split(':')[0].trim())
-  if (grok.length) return { ok: false, line: `pstack models: ${file} uses Grok for ${grok.join(', ')}. Run devflow pstack-models to swap in Claude models.` }
-  return { ok: true, line: `pstack models: ${file}` }
-}
-
-// /setup-pstack's defaults at the large budget. Grok is pstack's fast code model, so its roles get Sonnet, the fast
-// Claude tier, and panels keep two model families. Writing this directly skips /setup-pstack's detection and questions.
-const GROK = 'grok-4.7-xhigh-fast'
-const SONNET = 'claude-sonnet-5-5-xhigh'
-const OPUS = 'claude-opus-5-5-xhigh'
-const PSTACK_ROLES = [
-  ['feature, refactoring', [GROK]],
-  ['bug-fix', [GROK]],
-  ['perf-issue', [GROK]],
-  ['hillclimb', [GROK]],
-  ['judgment and prose', [OPUS]],
-  ['hardest tasks', [OPUS]],
-  ['how explorer', [GROK]],
-  ['how explainer', [OPUS]],
-  ['why investigators', [GROK]],
-  ['why synthesizer', [OPUS]],
-  ['reflect tooling', [GROK]],
-  ['reflect judgment, divergent, synthesizer', [OPUS]],
-  ['arena runners', [OPUS, GROK]],
-  ['arena cross-judge pool', [OPUS, GROK]],
-  ['swarm workers', [GROK]],
-  ['architect runners', [OPUS, GROK]],
-  ['interrogate reviewers', [OPUS, GROK]]
-]
-const PSTACK_MODELS = `# pstack model configuration. One line per role. Delete a line to fall back to the skill default.
-# \`inherit-parent\` or \`auto\` as a value: the role runs on the parent chat model (omit the subagent \`model\`). Alias entries in a panel list still count toward its fan-out.
-# budget: large (xhigh)
-${PSTACK_ROLES.map(([role, models]) => `${role}: ${models.map(m => m === GROK ? SONNET : m).join(', ')}`).join('\n')}
-`
-
-function offHostModels () {
-  const traits = AGENTS[installedAgent]
-  const file = path.join(os.homedir(), ...traits.pstackFile)
-  let text = null
-  try { text = fs.readFileSync(file, 'utf8') } catch {}
-  const roles = text === null ? PSTACK_ROLES : text.replace(/^---\r?\n[\s\S]*?\r?\n---/, '').split('\n').map(l => l.trim()).filter(l => /^[a-z][^:#]*:/.test(l)).map(l => {
-    const i = l.indexOf(':')
-    return [l.slice(0, i).trim(), l.slice(i + 1).split(',').map(m => m.trim()).filter(Boolean)]
-  })
-  const entries = roles.map(([role, models]) => [role, models.map(model => {
-    const family = modelFamily(model)
-    if (family === 'alias' || traits.families.includes(family)) return { model, runs: true }
-    return { model, runs: false, use: traits.closest[/opus/i.test(model) ? 'strong' : 'fast'] }
-  })])
-  const all = entries.flatMap(([, ms]) => ms)
-  const blocked = all.filter(m => !m.runs).length
-  return { entries, file: text === null ? null : file, total: all.length, blocked, label: traits.label, otherFamilies: traits.otherFamilies }
-}
-
-function reportModels () {
-  const r = offHostModels()
-  console.log(`pstack models on ${r.label}: nothing written. ${r.file ? `Checked ${r.file}.` : "No settings file, so pstack's defaults apply."}`)
-  for (const [role, ms] of r.entries) {
-    console.log(`${role}: ${ms.map(m => m.runs ? `${m.model} runs on ${r.label}` : `${m.model} can't run on ${r.label}; use ${m.use}`).join('; ')}`)
-  }
-  console.log(`other model family: ${r.otherFamilies ? 'available' : 'not available'}`)
-}
-
-function writePstackModels () {
-  if (installedAgent !== CLAUDE_CODE) { reportModels(); return }
-  const file = path.join(claudeDir(), 'rules', 'pstack-models.md')
-  const old = [file, path.join(os.homedir(), '.agents', 'pstack-models.md')].find(f => fs.existsSync(f))
-  const text = old ? fs.readFileSync(old, 'utf8').replace(/grok[\w.-]*/gi, slug => `claude-sonnet-5-5-${slug.match(/-(max|xhigh|high|medium|low)(?=-fast$|$)/i)?.[1] || 'xhigh'}`) : PSTACK_MODELS
-  if (old === file && text === fs.readFileSync(file, 'utf8')) { console.log(`pstack models: ${file} already uses Claude models`); return }
-  fs.mkdirSync(path.dirname(file), { recursive: true })
-  fs.writeFileSync(file, text)
-  console.log(`pstack models: wrote ${file}${old ? ` from ${old}, with Sonnet in place of Grok` : ' at the large budget, Sonnet for code and Opus for judgment'}`)
-}
-
-function verifySkills () {
-  const out = []
-  for (const d of ['.claude/skills', '.agents/skills']) {
-    try {
-      for (const n of fs.readdirSync(path.join(root, d))) if (n.startsWith('verify-')) out.push(`${d}/${n}`)
-    } catch {}
-  }
-  return out
-}
-
-// The flows commit and diff against a branch point, so a folder that isn't a repo yet gets one.
-function ensureGit () {
-  const git = args => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
-  try {
-    git(['rev-parse', '--is-inside-work-tree'])
-  } catch (e) {
-    if (e.code === 'ENOENT') return { ok: false, line: 'git: not installed. Install git.' }
-    try { git(['init']) } catch { return { ok: false, line: `git: ${root} isn't a repository and git init failed there.` } }
-    return { ok: true, line: `git: ran git init in ${root}; the first commit will be the branch point.` }
-  }
-  try { git(['rev-parse', '--verify', 'HEAD']) } catch { return { ok: true, line: 'git: no commits yet; the first commit will be the branch point.' } }
-  return { ok: true, line: 'git: ok' }
-}
-
-const REVIEW_SKILLS = { retro: ['retro', 'writing-for-agents'], reflect: ['reflect'] }
-const REVIEWS = ['retro', 'writing-for-agents', 'reflect']
-
-function doctor (only) {
-  if (only && !FLOWS[only]) { console.error(`unknown flow ${only}; use one of ${Object.keys(FLOWS).join(', ')}`); process.exit(2) }
-  const s = loadSettings(root)
-  const all = installedSkills(root)
-  let ready = true
-  const flows = only ? [only] : Object.keys(FLOWS)
-  const missingByPack = {}
-  const needed = {}
-  for (const f of flows) {
-    let names = FLOWS[f]
-    if (f === 'small' && s.small_changes === 'direct') names = []
-    if (f === 'wrap') names = names.filter(n => !REVIEWS.includes(n) || (REVIEW_SKILLS[s.after_session] || []).includes(n))
-    needed[f] = names
-    const missing = names.filter(n => !findSkill(n, all))
-    console.log(`${f}: ${missing.length ? 'missing ' + missing.join(', ') : 'ok'}`)
-    for (const n of missing) (missingByPack[SKILLS[n]] ||= []).push(n)
-    if (missing.length) ready = false
-  }
-  for (const [pack, names] of Object.entries(missingByPack)) {
-    console.log(`install ${PACKS[pack].title} (${[...new Set(names)].length} missing): ${installAdvice(pack, installedAgent)}`)
-  }
-  for (const pack of Object.keys(PACKS)) {
-    const wanted = packSkills(pack)
-    const have = wanted.filter(n => all.some(s => s.pack === pack && (s.name === n || s.name.endsWith(':' + n))))
-    console.log(`${PACKS[pack].title}: ${have.length} of ${wanted.length} installed`)
-  }
-
-  // tdd and teach ship in both packs. A loose pstack copy can shadow Matt's plugin copy.
-  for (const n of ['tdd', 'teach']) {
-    const loose = all.filter(x => x.name === n && x.pack === 'pstack' && !x.where.startsWith('plugin'))
-    for (const x of loose) {
-      console.log(`collision: pstack's ${n} at ${x.file} can shadow Matt's. Delete its folder.`)
-      ready = false
-    }
-  }
-
-  const needsPstack = flows.some(f => needed[f].some(n => SKILLS[n] === 'pstack'))
-  if (needsPstack) {
-    const m = pstackModels()
-    console.log(m.line)
-    if (!m.ok) ready = false
-  }
-
-  if (!only || only === 'setup' || only === 'feature' || only === 'big') {
-    const tracker = fs.existsSync(path.join(root, 'docs', 'agents', 'issue-tracker.md'))
-    console.log(`issue tracker: ${tracker ? 'docs/agents/issue-tracker.md' : 'not set up. Run the setup-matt-pocock-skills skill'}`)
-    if (!tracker) ready = false
-  }
-  if (!only || only === 'setup' || only === 'feature' || only === 'bug') {
-    const v = verifySkills()
-    console.log(`verification skill: ${v.length ? v.join(', ') : 'none yet. The Prove step offers to build one.'}`)
-  }
-  const g = ensureGit()
-  console.log(g.line)
-  if (!g.ok) ready = false
-  console.log(ready ? 'READY' : 'NOT READY')
-}
-
-// Each flow is saved in the project under .devflow/flows/<id>/: state.json (where it stands) and, once a session
-// ends with work left, handoff.md. A session continuing one flow reads only that folder.
+// Each flow is saved in the project under .devflow/flows/<id>/: state.json (where it stands), plan.md, decisions.md
+// and, for a big job tracked in files, tickets/. A session continuing one flow reads only that folder.
 const FLOWS_DIR = path.join(root, '.devflow', 'flows')
-const FIRST_STEP = { feature: '1. Understand', bug: '1. History', big: '1. Plan', small: '1. Small' }
-const FIELDS = ['step', 'next', 'tickets', 'pr', 'title', 'status', 'flow']
+const FIRST_STEP = { feature: '1. Understand', bug: '1. Diagnose', big: '1. Understand', small: '1. Change' }
+const FIELDS = ['step', 'next', 'branch', 'tickets', 'pr', 'title', 'status', 'flow']
 const ID = /^[a-z0-9][a-z0-9-]*$/
 
 const rel = p => path.relative(root, p).split(path.sep).join('/')
@@ -267,44 +80,47 @@ function savedFlows () {
 }
 
 function needFlow (id) {
-  if (!id) fail('usage: devflow flow set|show|done|handoff <id> ...')
+  if (!id) fail('usage: devflow flow set|show|done <id> ...')
   const state = readState(id)
   if (!state) fail(`no saved flow ${id}. Run devflow flows to see them.`)
   if (state.broken) fail(`flow ${id}: ${state.broken}. Fix or delete that file.`)
   return state
 }
 
-// A Status line saying the ticket is finished, in the shapes to-tickets and wayfinder write it.
+// A Status line saying the ticket is finished, and the Blocked by line naming the tickets it waits on.
 const CLOSED = /^[ \t]*(?:[-*>#]+[ \t]*)?\**status:?\**:?[ \t]*`?(resolved|done|closed|complete|completed|wontfix|wont-fix|won't fix)`?[ \t]*\.?[ \t]*$/im
-const BLOCKED = /^[ \t]*(?:[-*>#]+[ \t]*)?\**status:?\**:?[ \t]*`?blocked/im
+const BLOCKED_BY = /^[ \t]*(?:[-*>#]+[ \t]*)?\**blocked by:?\**:?(.*)$/im
 
-// Local ticket files (to-tickets or wayfinder) in number order, with the open ones.
+const ticketNumber = file => Number(/^\d+/.exec(path.basename(file))?.[0] ?? NaN)
+
+// Ticket files in number order. A ticket is ready when it is open and none of its blockers is.
 function ticketFiles (dir) {
   let names
   try { names = fs.readdirSync(dir, { withFileTypes: true }).filter(e => e.isFile() && e.name.endsWith('.md')).map(e => e.name) } catch { return null }
   const all = names.sort((a, b) => a.localeCompare(b, 'en', { numeric: true })).map(n => path.join(dir, n))
   const text = f => { try { return fs.readFileSync(f, 'utf8') } catch { return '' } }
   const open = all.filter(f => !CLOSED.test(text(f)))
-  return { all, open, ready: open.filter(f => !BLOCKED.test(text(f))) }
+  const waiting = new Set(open.map(ticketNumber))
+  const blockers = f => (BLOCKED_BY.exec(text(f))?.[1].match(/\d+/g) || []).map(Number)
+  return { all, open, ready: open.filter(f => !blockers(f).some(n => waiting.has(n))) }
 }
 
-// The folder a flow's tickets ref names. wayfinder and to-tickets keep their tickets in an issues/ folder beside the
-// map or spec, so a ref to the effort folder (or to map.md) means that issues/ folder.
-function ticketDir (ref) {
-  const dir = path.resolve(root, ref)
-  const issues = path.join(dir, 'issues')
-  try { if (fs.statSync(issues).isDirectory()) return issues } catch {}
-  return dir
+// Tickets kept as files live in the flow's own tickets/ folder, unless its tickets ref names another folder.
+function ticketDir (state) {
+  const named = state.tickets && path.resolve(root, state.tickets)
+  const isDir = d => { try { return fs.statSync(d).isDirectory() } catch { return false } }
+  if (named && isDir(named)) return named
+  const own = path.join(FLOWS_DIR, state.id, 'tickets')
+  return isDir(own) ? own : null
 }
 
-function nextTicket (state) {
-  if (!state.tickets) return null
-  const dir = ticketDir(state.tickets)
-  const t = ticketFiles(dir)
-  if (!t) return fs.existsSync(dir) ? null : `next ticket: the first open one in ${state.tickets} on the issue tracker; check its blockers`
-  if (!t.open.length) return `tickets: all ${t.all.length} in ${state.tickets} are done`
-  if (!t.ready.length) return `tickets: the ${t.open.length} open in ${state.tickets} are all blocked`
-  return `next ticket: ${rel(t.ready[0])} (${t.open.length} of ${t.all.length} open; check its blockers)`
+function ticketLine (state) {
+  const dir = ticketDir(state)
+  const t = dir && ticketFiles(dir)
+  if (!t || !t.all.length) return state.tickets ? `tickets: ${state.tickets} on the issue tracker; its open tickets with no open blocker are ready` : null
+  if (!t.open.length) return `tickets: all ${t.all.length} in ${rel(dir)} are done`
+  if (!t.ready.length) return `tickets: the ${t.open.length} open in ${rel(dir)} all wait on another open ticket`
+  return `ready tickets: ${t.ready.map(f => path.basename(f)).join(', ')} in ${rel(dir)} (${t.open.length} of ${t.all.length} open)`
 }
 
 function slug (text) {
@@ -322,7 +138,7 @@ function flow ([sub, id, ...rest]) {
     fs.mkdirSync(path.join(FLOWS_DIR, newId), { recursive: true })
     const ignore = path.join(root, '.devflow', '.gitignore')
     if (!fs.existsSync(ignore)) fs.writeFileSync(ignore, '*\n')
-    writeState({ id: newId, title, flow: kind, step: FIRST_STEP[kind], next: '', tickets: '', status: 'active', created: new Date().toISOString() })
+    writeState({ id: newId, title, flow: kind, step: FIRST_STEP[kind], next: '', branch: '', tickets: '', status: 'active', created: new Date().toISOString() })
     console.log(`${newId}\t${rel(path.join(FLOWS_DIR, newId))}`)
   } else if (sub === 'set') {
     const state = needFlow(id)
@@ -334,9 +150,6 @@ function flow ([sub, id, ...rest]) {
       let v = kv.slice(i + 1)
       if (i < 1 || !FIELDS.includes(k)) fail(usage)
       if (k === 'flow' && !FIRST_STEP[v = v.toLowerCase()]) fail(`flow must be one of ${Object.keys(FIRST_STEP).join(', ')}`)
-      // A ticket file (or a wayfinder map.md) stands for its folder, and an effort folder for its issues/ folder.
-      if (k === 'tickets' && v.endsWith('.md') && fs.existsSync(path.resolve(root, v))) v = rel(path.dirname(path.resolve(root, v)))
-      if (k === 'tickets' && v && fs.existsSync(path.resolve(root, v))) v = rel(ticketDir(v))
       state[k] = v
     }
     writeState(state)
@@ -350,71 +163,22 @@ function flow ([sub, id, ...rest]) {
     if (state.status !== 'active') console.log(`status: ${state.status}`)
     console.log(`step: ${state.step}`)
     if (state.next) console.log(`next: ${state.next}`)
+    if (state.branch) console.log(`branch: ${state.branch}`)
     if (state.pr) console.log(`pr: ${state.pr}`)
-    const t = nextTicket(state)
+    const t = ticketLine(state)
     if (t) console.log(t)
     console.log(`folder: ${rel(dir)}`)
-    const handoff = path.join(dir, 'handoff.md')
-    if (fs.existsSync(handoff)) console.log(`\n# Handoff from the last session (${rel(handoff)})\n${fs.readFileSync(handoff, 'utf8')}`)
+    for (const [name, what] of [['plan.md', 'plan'], ['decisions.md', 'decisions']]) {
+      if (fs.existsSync(path.join(dir, name))) console.log(`${what}: ${rel(path.join(dir, name))}`)
+    }
   } else if (sub === 'done') {
     const state = needFlow(id)
     state.status = 'done'
     writeState(state)
     console.log(`${state.id}: done`)
-  } else if (sub === 'handoff') {
-    // Moves a handoff written elsewhere (an older one in the temp folder) into the flow, replacing its last one.
-    const state = needFlow(id)
-    if (!rest[0]) fail('usage: devflow flow handoff <id> <file>')
-    const dest = path.join(FLOWS_DIR, state.id, 'handoff.md')
-    fs.copyFileSync(path.resolve(root, rest[0]), dest)
-    fs.rmSync(path.resolve(root, rest[0]))
-    writeState(state)
-    console.log(`${state.id}: handoff saved to ${rel(dest)}`)
   } else {
-    fail('usage: devflow flow new|set|show|done|handoff ...')
+    fail('usage: devflow flow new|set|show|done ...')
   }
-}
-
-// Whether a temp-folder handoff names this project: its path as written on this OS, with forward slashes, or
-// JSON-escaped, followed by a path separator, quote, space or the end, so a sibling like <root>-other doesn't count.
-function namesProject (text) {
-  if (path.dirname(root) === root) return false
-  const forms = [root, root.split(path.sep).join('/'), root.split(path.sep).join('\\\\')]
-  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const re = new RegExp(`(?:${[...new Set(forms)].map(esc).join('|')})(?=[\\\\/"'\`\\s)\\]]|$)`, process.platform === 'win32' ? 'i' : '')
-  return re.test(text)
-}
-
-// Work from before devflow saved flows: handoffs in the OS temp folder that name this project, and local ticket
-// folders no saved flow points at. A wayfinder map's decision tickets aren't build work to pick up as a feature, so a
-// folder beside a map.md is left out; a big flow that uses the map lists it through its own tickets ref.
-function untracked (flows) {
-  const out = []
-  let names = []
-  try { names = fs.readdirSync(os.tmpdir()) } catch {}
-  for (const n of names) {
-    if (!n.endsWith('.md')) continue
-    const file = path.join(os.tmpdir(), n)
-    try {
-      const { mtimeMs, size } = fs.statSync(file)
-      if (Date.now() - mtimeMs > 30 * 864e5 || size > 512 * 1024) continue
-      const text = fs.readFileSync(file, 'utf8')
-      if (!/handoff|devflow/i.test(n + text.slice(0, 2000)) || !namesProject(text)) continue
-      const h = /^#\s+(.+)$/m.exec(text)
-      out.push({ time: mtimeMs, head: `handoff in the temp folder · ${day(mtimeMs)} · ${h ? h[1].trim() : n}`, next: `continue with: resume ${file}` })
-    } catch {}
-  }
-  const linked = new Set(flows.filter(f => f.tickets).map(f => ticketDir(f.tickets)))
-  let efforts = []
-  try { efforts = fs.readdirSync(path.join(root, '.scratch'), { withFileTypes: true }).filter(e => e.isDirectory()) } catch {}
-  for (const e of efforts) {
-    const dir = path.join(root, '.scratch', e.name, 'issues')
-    const t = !linked.has(dir) && !fs.existsSync(path.join(root, '.scratch', e.name, 'map.md')) && ticketFiles(dir)
-    if (!t || !t.open.length) continue
-    const time = Math.max(...t.all.map(f => fs.statSync(f).mtimeMs))
-    out.push({ time, head: `tickets · ${day(time)} · ${e.name}: ${t.open.length} of ${t.all.length} open`, next: `continue with: ticket ${rel((t.ready[0] || t.open[0]))}` })
-  }
-  return out.sort((a, b) => b.time - a.time)
 }
 
 // A flow that ships as a PR is finished when the PR merges, so no later session has to close it. gh answers for the
@@ -429,7 +193,8 @@ function closeMerged (flows) {
   const merged = []
   for (const f of flows) {
     if (f.status === 'done' || !f.pr) continue
-    const t = f.tickets && ticketFiles(ticketDir(f.tickets))
+    const dir = ticketDir(f)
+    const t = dir && ticketFiles(dir)
     if (t && t.open.length) continue
     f.prState = prState(f.pr)
     if (f.prState !== 'MERGED') continue
@@ -448,51 +213,59 @@ function collect () {
   return {
     active: ok.filter(f => f.status !== 'done').sort((a, b) => b.updated.localeCompare(a.updated)),
     merged,
-    broken: saved.filter(f => f.broken),
-    old: untracked(ok)
+    broken: saved.filter(f => f.broken)
   }
 }
 
 function flows () {
-  const { active, merged, broken, old } = collect()
+  const { active, merged, broken } = collect()
   for (const f of merged) console.log(`done: ${f.id} · ${f.title} (PR ${f.pr} merged)`)
-  if (!active.length && !old.length && !broken.length) { console.log('none'); return }
+  if (!active.length && !broken.length) { console.log('none'); return }
   active.forEach((f, i) => {
-    const t = nextTicket(f)
+    const t = ticketLine(f)
     const pr = f.prState === 'OPEN' ? `waiting on PR ${f.pr} to merge` : f.prState === 'CLOSED' ? `PR ${f.pr} was closed without merging` : ''
     console.log(`${i + 1}. ${f.id} · ${cap(f.flow)} · step ${f.step} · ${f.updated.slice(0, 10)} · ${f.title}`)
     if (f.next || t || pr) console.log(`   ${[pr, f.next, t].filter(Boolean).join('; ')}`)
   })
   for (const f of broken) console.log(`unreadable: ${f.id}: ${f.broken}`)
-  if (old.length) {
-    console.log('\nNot saved as flows:')
-    old.forEach((f, i) => console.log(`${active.length + i + 1}. ${f.head}\n   ${f.next}`))
-  }
 }
 
 function emit (event, additionalContext, systemMessage) {
   console.log(JSON.stringify(agentFor(hookFrom).context(event, additionalContext, systemMessage)))
 }
 
-// SessionStart hook: one line for the user, and the same for Claude, when this project has work to continue.
+// How a hook's message points at the start skill: by name on an agent devflow was installed for, else by its file
+// in the plugin. That file is read directly, so the message also says what the plugin root is.
+function startSkill () {
+  const named = ADAPTERS[hookFrom] ? hookFrom : installedAgent
+  if (ADAPTERS[named]) return `use the ${ADAPTERS[named].entrySkill.replace('{name}', 'start')} skill`
+  const plugin = fileURLToPath(new URL('..', import.meta.url)).replace(/[\\/]$/, '')
+  return `read ${path.join(plugin, 'skills', 'start', 'SKILL.md')} and follow it (in devflow's files, \${CLAUDE_PLUGIN_ROOT} means ${plugin})`
+}
+
+// SessionStart hook: one line for the user, and the same for the agent, when this project has work to continue.
 function reminder () {
   let found
   try { found = collect() } catch { return }
-  const n = found.active.length + found.old.length
+  const n = found.active.length
   if (!n) return
   const titles = found.active.slice(0, 3).map(f => f.title)
   const more = n - titles.length
-  const list = titles.length ? ` (${titles.join(', ')}${more ? `, ${more} more` : ''})` : ''
-  const named = ADAPTERS[hookFrom] ? hookFrom : installedAgent
-  const how = ADAPTERS[named] ? `${ADAPTERS[named].invoke.replace('{name}', 'continue')} in ${AGENTS[named].label}` : '/devflow:continue in Claude Code'
-  const line = `devflow: ${n} unfinished flow${n === 1 ? '' : 's'} here${list}. Run devflow's continue skill to pick one up (${how}).`
-  emit('SessionStart', `${line} To pick up earlier work, point the user to devflow's continue skill; don't guess the flow or read flow folders yourself.`, line)
+  const line = `devflow: ${n} unfinished flow${n === 1 ? '' : 's'} here (${titles.join(', ')}${more ? `, ${more} more` : ''}). Say "keep going" to pick one up.`
+  emit('SessionStart', `${line} When the user asks to keep going, ${startSkill()} with that as the task; don't guess the flow or read flow folders yourself.`, line)
 }
 
-// SessionStart hook, also after compaction, so the rule outlives the summary.
+const NO_COMMENTS = "Don't add comments or docstrings to code you write or edit, including ones explaining the change, unless the user asks. Leave existing comments alone unless your change makes them wrong."
+
+// SessionStart hook, also after compaction, so the rules outlive the summary.
 function rules () {
-  if (!loadSettings(root).no_comments) return
-  emit('SessionStart', "Don't add comments or docstrings to code you write or edit, including ones explaining the change, unless the user asks. Leave existing comments alone unless your change makes them wrong.")
+  const s = loadSettings(root)
+  const out = []
+  if (s.auto_flows) {
+    out.push(`devflow: run development work in this project as a devflow flow without being asked. When the user asks you to build, change or fix code, ${startSkill()} with their message as the task, before doing anything else. Don't start a flow for a question, for work that changes no code, or when the user says "just do it" or "no flow".`)
+  }
+  if (s.no_comments) out.push(NO_COMMENTS)
+  if (out.length) emit('SessionStart', out.join('\n\n'))
 }
 
 // A conversation's flow is kept in .devflow/sessions/<session id>, so the reminder needs no guessing among open flows.
@@ -514,7 +287,7 @@ function track () {
   const file = sessionFile(input)
   const cmd = input.tool_input && input.tool_input.command
   if (!file || typeof cmd !== 'string') return
-  const m = /devflow(?:\.mjs)?["']?\s+flow\s+(new|set|show|done|handoff)\b\s*([^\s;&|]*)/.exec(cmd)
+  const m = /devflow(?:\.mjs)?["']?\s+flow\s+(new|set|show|done)\b\s*([^\s;&|]*)/.exec(cmd)
   if (!m) return
   const res = input.tool_response
   const out = typeof res === 'string' ? res : (res && typeof res.stdout === 'string' ? res.stdout : '')
@@ -544,20 +317,14 @@ function active () {
   try { id = fs.readFileSync(file, 'utf8').trim() } catch { return }
   const state = readState(id)
   if (!state || state.broken || state.status === 'done') return
-  const plugged = fileURLToPath(new URL('../skills/start/SKILL.md', import.meta.url))
-  const entry = (ADAPTERS[installedAgent]?.entrySkill || '{name}').replace('{name}', 'start')
-  const fallback = fs.existsSync(plugged) ? `read ${plugged} and run` : `run devflow show ${entry} and`
   emit(input.hook_event_name === 'SessionStart' ? 'SessionStart' : 'UserPromptSubmit',
     `devflow: on flow ${state.id} (${cap(state.flow)}: ${state.title}), step ${state.step}. ` +
-    `Treat this message as part of it unless it's unrelated, following the devflow start skill (devflow show per step, devflow flow set ${state.id} to save). ` +
-    `If that skill isn't in context, ${fallback} devflow flow show ${state.id}.`)
+    `Treat this message as part of it unless it's unrelated, and save progress with devflow flow set ${state.id}. ` +
+    `If the start skill isn't in context, ${startSkill()}, then run devflow flow show ${state.id}.`)
 }
 
 const [cmd, ...args] = process.argv.slice(2)
 if (cmd === 'settings') settings()
-else if (cmd === 'show') show(args[0])
-else if (cmd === 'doctor') doctor(args[0])
-else if (cmd === 'pstack-models') writePstackModels()
 else if (cmd === 'flows') flows()
 else if (cmd === 'flow') flow(args)
 else if (cmd === 'reminder') reminder()
@@ -565,6 +332,6 @@ else if (cmd === 'rules') rules()
 else if (cmd === 'track') track()
 else if (cmd === 'active') active()
 else {
-  console.error('usage: devflow settings | show <skill> | doctor [flow] | pstack-models | flows | flow new|set|show|done|handoff ...')
+  console.error('usage: devflow settings | flows | flow new|set|show|done ...')
   process.exit(2)
 }

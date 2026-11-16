@@ -8,18 +8,19 @@ import { ADAPTERS } from './devflow-adapters.mjs'
 export const DEFAULTS = {
   git_guard: true,
   no_comments: true,
+  auto_flows: true,
   adversarial_review: 'risky changes',
-  small_changes: 'poteto-mode',
-  grilling: 'full',
-  after_session: 'reflect'
+  subagent_count: 3,
+  subagent_model: 'auto',
+  tracker: 'auto'
 }
 
 const CHOICES = {
   adversarial_review: ['risky changes', 'always', 'never'],
-  small_changes: ['poteto-mode', 'direct'],
-  grilling: ['full', 'important'],
-  after_session: ['retro', 'reflect', 'handoff']
+  tracker: ['auto', 'github', 'gitlab', 'files']
 }
+
+const MAX_SUBAGENTS = 10
 
 const ALL_FAMILIES = ['claude', 'gpt', 'gemini', 'grok']
 
@@ -159,7 +160,6 @@ function settingsFile (file) {
 export function loadSettings (root) {
   const agent = currentAgent()
   const s = { ...DEFAULTS }
-  if (!AGENTS[agent].transcripts) s.after_session = 'handoff'
   const project = settingsFile(path.join(root, '.devflow', 'settings.json'))
   // A repo carries its own settings, but can't turn the git guard off: cloning one would disarm it.
   delete project.git_guard
@@ -172,7 +172,12 @@ export function loadSettings (root) {
     for (const [k, v] of Object.entries(layer)) {
       if (!(k in DEFAULTS) || v === '' || v === null || v === undefined) continue
       if (typeof DEFAULTS[k] === 'boolean') s[k] = !(v === false || v === 'false')
-      else if (CHOICES[k].includes(v)) s[k] = v
+      else if (typeof DEFAULTS[k] === 'number') {
+        const n = typeof v === 'boolean' ? NaN : Number(v)
+        if (Number.isInteger(n) && n >= 1) s[k] = Math.min(n, MAX_SUBAGENTS)
+      } else if (CHOICES[k]) {
+        if (CHOICES[k].includes(v)) s[k] = v
+      } else if (typeof v === 'string' && v.trim()) s[k] = v.trim()
     }
   }
   if (process.env.DEVFLOW_GUARD === 'off') s.git_guard = false

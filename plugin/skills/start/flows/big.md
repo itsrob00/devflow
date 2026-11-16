@@ -1,28 +1,27 @@
 # Big flow
 
-When resuming, continue the existing `wayfinder` map or `figure-it-out` playbook where the handoff says; don't make a new one.
+Steps 1 to 4 end at the one stop. After the go, the tickets are built by subagents on one branch and the work goes up as one pull request.
 
-1. **Plan.**
-   - The way isn't clear (open decisions, unknown scope): `wayfinder`. It maps the work as decision tickets and resolves them one at a time. When the map clears, continue with Feature step 3 (`to-spec`, then `to-tickets`) in `feature.md` in this folder.
-   - The way is clear but long (a migration, a sweep across many call sites, a multi-part change): `figure-it-out`. It designs the playbook and runs it.
-   - Merge tickets that are only a grilling session (questions for the user, no code, research or prototype) into one ticket that asks all their questions in one session. Keep one apart only when its questions depend on a non-grilling ticket finishing first. Say which tickets you merged.
-2. **Log decisions.** `show-me-your-work` from the start. Its trail review asks for a different model family. Spawn that reviewer as a subagent with a fresh context.
-   - Find out which case applies: on any agent but Claude Code (which runs only Claude, so it is the second case), run `devflow pstack-models`. It writes nothing there and ends with `other model family: available` (Cursor, OpenCode) or `other model family: not available` (Codex).
-   - Where another model family is available, spawn the reviewer on a model from a family other than the main model's (a reviewer named in the pstack models file, else one of the agent's own models) and write `reviewed by <model> (fresh context; other model family)` in the Attention section.
-   - Where none is, spawn it on the `judgment and prose` model from the pstack models file (omit `model` for `inherit-parent` or `auto`), never on a model the user didn't configure, and write `reviewed by <model> (fresh context; no other model family was available)`.
-   - Report a fallback only if a spawn actually failed, with its error.
-3. **After each ticket** (a `wayfinder` decision ticket, a `figure-it-out` playbook step, or a `to-tickets` build ticket), show the user what's left before starting the next. Read the list from the map, playbook or tickets, not from memory, and print every ticket in order, including any the work added:
+1. **Understand.** `understand`, on its wide path. Keep its three or four lines for the plan.
+2. **Decide.** `decide`. When a decision needs a runnable answer, `prototype`. When it waits on docs or an API fact, `research` in the background.
+3. **Shape.** `shape`, for the interfaces the tickets will share.
+4. **Plan.** `plan`, with tickets. Show the plan and the ticket list and wait for the user's go. Save `tickets=` with the spec's issue, or nothing when the tickets are files in the flow's folder.
+5. **Build.** `build`, on its delegated path, with the subagent settings from `devflow settings`. Save `branch=` when the job's branch exists. No pull request per ticket.
+   - After each merged ticket, print the list from the tickets themselves, not from memory:
 
-   ```
-   Big: <job> · 3 of 7 done
-   ✓ 1. <ticket>
-   ✓ 2. <ticket>
-   ✓ 3. <ticket>   (just finished)
-   → 4. <ticket>   (next)
-     5. <ticket>
-     6. <ticket>
-     7. <ticket>
-   ```
+     ```
+     Big: <job> · 3 of 7 done
+     ✓ 1. <ticket>
+     ✓ 2. <ticket>
+     ✓ 3. <ticket>   (just merged)
+     → 4. <ticket>   (building)
+     → 5. <ticket>   (building)
+       6. <ticket>   (blocked by 4)
+     ? 7. <ticket>   (parked: <question>)
+     ```
 
-   Mark a ticket blocked when it waits on another or on the user, and say on what. When none are left, say so and continue: Feature step 3 after a `wayfinder` map clears, otherwise **Finish** in the start skill.
-4. **End of each session.** `handoff` with what the next session is for, saved as `.devflow/flows/<id>/handoff.md` (replacing the one there), not the temp folder `handoff` names. Start the file with the flow (Big), the step and ticket to continue from, the map or playbook and decision log paths, the remaining-tickets list from step 3, and any settings the user changed. Save the step with `devflow flow set <id> step=...` and tell the user to start the next session with devflow's continue skill (`/devflow:continue` in Claude Code).
+   - A later session continues here: `devflow flow show <id>` names the tickets that are ready.
+6. **Review.** `review`, on the job's branch against the plan.
+7. **Check.** `check` on the whole diff. Then `challenge`, by the adversarial review setting: always, never, or with risky changes only when the diff touches auth, permissions, payments, data migration or deletion, concurrency, or a public API.
+8. **Prove.** `prove`, once for the whole job.
+9. **Ship.** `ship`: one pull request for the job's branch. Save `pr=`.

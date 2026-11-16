@@ -32,35 +32,38 @@ test('devflow skill texts name a host-only tool or command only beside the Claud
   }
 })
 
-test("each entry point keeps $ARGUMENTS as a hint and takes the task from the user's message when it is empty or unfilled", () => {
-  const all = texts()
-  for (const entry of ['start', 'continue', 'wrap']) {
-    const text = all[`${entry}/SKILL.md`]
-    assert.match(text, /\$ARGUMENTS/, entry)
-    assert.match(text, /user's message/, entry)
+test("the start skill keeps $ARGUMENTS as a hint and takes the task from the user's message when it is empty or unfilled", () => {
+  const start = texts()['start/SKILL.md']
+  assert.match(start, /\$ARGUMENTS/)
+  assert.match(start, /user's message/)
+})
+
+test('only the start skill can start by itself, and every other skill waits to be named', () => {
+  for (const [name, text] of Object.entries(texts())) {
+    if (!name.endsWith('/SKILL.md')) continue
+    if (name === 'start/SKILL.md') assert.doesNotMatch(text, /^disable-model-invocation:/m)
+    else assert.match(text, /^disable-model-invocation: true$/m, name)
   }
-  assert.doesNotMatch(all['setup/SKILL.md'], /\$ARGUMENTS/)
 })
 
-test('the Big flow names the configured other-family reviewer, and says when no other model family was available', () => {
-  const big = texts()['start/flows/big.md']
-  assert.match(big, /other model family/)
-  assert.match(big, /no other model family was available/)
-  assert.doesNotMatch(big, /Claude Code has no other model family/)
-})
-
-test('the Big flow and the feature flow tell the agent how to learn whether another model family is available', () => {
+test('every skill a flow names exists, and only flow files and the start skill name another skill by its file', () => {
   const all = texts()
-  for (const name of ['start/flows/big.md', 'start/flows/feature.md']) {
-    assert.match(all[name], /devflow pstack-models/, name)
-    assert.match(all[name], /other model family: (not )?available/, name)
+  const skills = new Set(Object.keys(all).filter(n => n.endsWith('/SKILL.md')).map(n => n.split('/')[0]))
+  for (const flow of ['small', 'feature', 'bug', 'big']) {
+    const text = all[`start/flows/${flow}.md`]
+    assert.ok(text, flow)
+    for (const [, name] of text.matchAll(/`([a-z]+)`/g)) assert.ok(skills.has(name), `${flow}.md names ${name}`)
   }
-  assert.match(all['start/flows/big.md'], /other model family\)/)
-  assert.match(all['start/flows/big.md'], /no other model family was available\)/)
+  for (const [name, text] of Object.entries(all)) {
+    if (name.startsWith('start/')) continue
+    assert.doesNotMatch(text, /CLAUDE_PLUGIN_ROOT|skills\/[a-z]+\/SKILL\.md/, name)
+  }
 })
 
-test('the wrap skill handles a handoff-only session review without reading a transcript', () => {
-  const wrap = texts()['wrap/SKILL.md']
-  assert.match(wrap, /`retro`, `reflect` or `handoff`/)
-  assert.match(wrap, /`handoff`[^\n]*no transcript review/)
+test('each flow with a plan stops once for the go, and the small change has no stop', () => {
+  const all = texts()
+  for (const flow of ['feature', 'big']) assert.match(all[`start/flows/${flow}.md`], /wait for the user's go/, flow)
+  assert.match(all['start/flows/bug.md'], /only for a fix that is more than a small change/)
+  assert.match(all['start/flows/small.md'], /No plan and no stop/)
+  assert.match(all['start/flows/big.md'], /No pull request per ticket/)
 })

@@ -14,61 +14,64 @@ const bare = home => {
 }
 const settings = (cwd, env) => execFileSync('node', [script, 'settings'], { cwd, env, encoding: 'utf8' })
 
-const DEFAULTS = 'git guard: on\nno code comments: on\nmulti-model review: risky changes\nsmall changes: poteto-mode\ngrilling: full\nsession review: reflect\n'
+const out = ({ comments = 'on', auto = 'on', review = 'risky changes', count = 3, model = 'auto (simple tickets: claude-sonnet-5-5, complex tickets: claude-opus-5-5)', tracker = 'auto (from the git remote)' } = {}) =>
+  `git guard: on\nno code comments: ${comments}\nautomatic flows: ${auto}\nadversarial review: ${review}\nsubagents at once: ${count}\nsubagent model: ${model}\nstrong model: claude-opus-5-5\ntracker: ${tracker}\n`
+
+const fresh = () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-settings-'))
+  const project = path.join(home, 'project')
+  fs.mkdirSync(project)
+  return { home, project, user: path.join(home, '.config', 'devflow', 'settings.json'), local: path.join(project, '.devflow', 'settings.json') }
+}
 
 test('a user settings file changes the settings in use', () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-settings-'))
-  const project = path.join(home, 'project')
-  fs.mkdirSync(project)
-  assert.equal(settings(project, bare(home)), DEFAULTS)
-  write(path.join(home, '.config', 'devflow', 'settings.json'), JSON.stringify({ adversarial_review: 'always', small_changes: 'direct', no_comments: false }))
-  assert.equal(settings(project, bare(home)), 'git guard: on\nno code comments: off\nmulti-model review: always\nsmall changes: direct\ngrilling: full\nsession review: reflect\n')
+  const { home, project, user } = fresh()
+  assert.equal(settings(project, bare(home)), out())
+  write(user, JSON.stringify({ adversarial_review: 'always', no_comments: false, auto_flows: false, subagent_count: 5, subagent_model: 'haiku', tracker: 'files' }))
+  assert.equal(settings(project, bare(home)), out({ comments: 'off', auto: 'off', review: 'always', count: 5, model: 'haiku', tracker: 'files' }))
 })
 
-test('the grilling setting takes full or important and ignores anything else', () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-settings-'))
-  const project = path.join(home, 'project')
-  fs.mkdirSync(project)
-  write(path.join(home, '.config', 'devflow', 'settings.json'), JSON.stringify({ grilling: 'important' }))
-  assert.match(settings(project, bare(home)), /^grilling: important$/m)
-  write(path.join(project, '.devflow', 'settings.json'), JSON.stringify({ grilling: 'some' }))
-  assert.match(settings(project, bare(home)), /^grilling: important$/m)
-  assert.match(settings(project, { ...bare(home), CLAUDE_PLUGIN_OPTION_GRILLING: 'full' }), /^grilling: full$/m)
+test('the subagent count takes whole numbers from 1, as a number or text, and stops at 10', () => {
+  const { home, project, user, local } = fresh()
+  write(user, JSON.stringify({ subagent_count: '4' }))
+  assert.match(settings(project, bare(home)), /^subagents at once: 4$/m)
+  for (const bad of [0, -2, 1.5, 'many', true]) {
+    write(local, JSON.stringify({ subagent_count: bad }))
+    assert.match(settings(project, bare(home)), /^subagents at once: 4$/m, String(bad))
+  }
+  write(local, JSON.stringify({ subagent_count: 50 }))
+  assert.match(settings(project, bare(home)), /^subagents at once: 10$/m)
+  assert.match(settings(project, { ...bare(home), CLAUDE_PLUGIN_OPTION_SUBAGENT_COUNT: '2' }), /^subagents at once: 2$/m)
 })
 
 test('a project settings file overrides the user file, and the host plugin options override both on the host', () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-settings-'))
-  const project = path.join(home, 'project')
-  fs.mkdirSync(project)
-  write(path.join(home, '.config', 'devflow', 'settings.json'), JSON.stringify({ adversarial_review: 'always', small_changes: 'direct' }))
-  write(path.join(project, '.devflow', 'settings.json'), JSON.stringify({ adversarial_review: 'never', after_session: 'retro' }))
-  assert.equal(settings(project, bare(home)), 'git guard: on\nno code comments: on\nmulti-model review: never\nsmall changes: direct\ngrilling: full\nsession review: retro\n')
+  const { home, project, user, local } = fresh()
+  write(user, JSON.stringify({ adversarial_review: 'always', subagent_model: 'haiku' }))
+  write(local, JSON.stringify({ adversarial_review: 'never', tracker: 'gitlab' }))
+  assert.equal(settings(project, bare(home)), out({ review: 'never', model: 'haiku', tracker: 'gitlab' }))
 
   write(path.join(home, '.claude', 'settings.json'), JSON.stringify({ pluginConfigs: { 'devflow@devflow': { options: { adversarial_review: 'always' } } } }))
-  assert.match(settings(project, bare(home)), /^multi-model review: always$/m)
-  assert.match(settings(project, { ...bare(home), CLAUDE_PLUGIN_OPTION_AFTER_SESSION: 'reflect' }), /^session review: reflect$/m)
-  assert.match(settings(project, { ...bare(home), CLAUDE_PLUGIN_OPTION_AFTER_SESSION: '' }), /^session review: retro$/m)
+  assert.match(settings(project, bare(home)), /^adversarial review: always$/m)
+  assert.match(settings(project, { ...bare(home), CLAUDE_PLUGIN_OPTION_TRACKER: 'files' }), /^tracker: files$/m)
+  assert.match(settings(project, { ...bare(home), CLAUDE_PLUGIN_OPTION_TRACKER: '' }), /^tracker: gitlab$/m)
 })
 
 test('a malformed settings file or value falls back to the layer below without an error', () => {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-settings-'))
-  const project = path.join(home, 'project')
-  const user = path.join(home, '.config', 'devflow', 'settings.json')
-  const local = path.join(project, '.devflow', 'settings.json')
+  const { home, project, user, local } = fresh()
   write(user, '{bad')
   write(local, '[]')
-  assert.equal(settings(project, bare(home)), DEFAULTS)
+  assert.equal(settings(project, bare(home)), out())
   write(local, 'null')
-  assert.equal(settings(project, bare(home)), DEFAULTS)
-  write(user, JSON.stringify({ small_changes: 'direct' }))
-  write(local, JSON.stringify({ small_changes: 'sometimes', adversarial_review: 3, unknown: 'x' }))
+  assert.equal(settings(project, bare(home)), out())
+  write(user, JSON.stringify({ tracker: 'files' }))
+  write(local, JSON.stringify({ tracker: 'jira', adversarial_review: 3, subagent_model: '  ', unknown: 'x', grilling: 'full' }))
   const r = spawnSync('node', [script, 'settings'], { cwd: project, env: bare(home), encoding: 'utf8' })
   assert.equal(r.status, 0)
   assert.equal(r.stderr, '')
-  assert.equal(r.stdout, 'git guard: on\nno code comments: on\nmulti-model review: risky changes\nsmall changes: direct\ngrilling: full\nsession review: reflect\n')
+  assert.equal(r.stdout, out({ tracker: 'files' }))
 })
 
-test('settings, doctor, flows and the hooks give the same results from a project subfolder with no host env vars', () => {
+test('settings, flows and the hooks give the same results from a project subfolder with no host env vars', () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-root-'))
   const project = path.join(home, 'project')
   const sub = path.join(project, 'src', 'deep')
@@ -76,13 +79,13 @@ test('settings, doctor, flows and the hooks give the same results from a project
   execFileSync('git', ['init', '-q'], { cwd: project })
   const env = bare(home)
   const run = (cwd, args, input) => execFileSync('node', [script, ...args], { cwd, env, encoding: 'utf8', input: input === undefined ? '' : JSON.stringify(input) })
-  write(path.join(project, '.devflow', 'settings.json'), JSON.stringify({ adversarial_review: 'never', no_comments: false }))
+  write(path.join(project, '.devflow', 'settings.json'), JSON.stringify({ adversarial_review: 'never', no_comments: false, auto_flows: false }))
   run(project, ['flow', 'new', 'feature', 'CSV export'])
 
-  for (const args of [['settings'], ['doctor'], ['doctor', 'feature'], ['flows'], ['reminder'], ['rules']]) {
+  for (const args of [['settings'], ['flows'], ['reminder'], ['rules']]) {
     assert.equal(run(sub, args), run(project, args), `devflow ${args.join(' ')}`)
   }
-  assert.match(run(sub, ['settings']), /^multi-model review: never$/m)
+  assert.match(run(sub, ['settings']), /^adversarial review: never$/m)
   assert.match(run(sub, ['flows']), /^1\. csv-export · Feature/m)
   assert.match(JSON.parse(run(sub, ['reminder'])).systemMessage, /1 unfinished flow here \(CSV export\)/)
   assert.equal(run(sub, ['rules']), '')

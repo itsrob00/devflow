@@ -192,7 +192,7 @@ function instructionsBody (adapter, { pluginDir, ref, backstop }) {
   return [
     '## devflow',
     '',
-    `devflow runs development work as flows: ${names(adapter.invoke, 'start')} starts one and ${names(adapter.invoke, 'continue')} picks one up. \`devflow\` means ${'`' + devflow + '`'}, run from the project root.`,
+    `devflow runs development work as flows. ${names(adapter.invoke, 'start')} starts one, or picks up an unfinished one when given nothing. \`devflow\` means ${'`' + devflow + '`'}, run from the project root.`,
     '',
     '- While a devflow flow is running, check `devflow active` before replying to each message and treat the message as part of that flow unless it is unrelated. If it prints nothing, `devflow flows` lists any unfinished flows.',
     `- Git guard, ${backstop ? 'in every session' : 'while a flow is running'}: ${GUARDED_TEXT}`
@@ -435,6 +435,7 @@ function putRuntime (entry, { pluginDir, agent, scope }) {
   for (const dir of ['scripts', 'hooks']) {
     for (const rel of listFiles(path.join(PLUGIN, dir))) putFile(entry, path.join(pluginDir, dir, ...rel), fs.readFileSync(path.join(PLUGIN, dir, ...rel)))
   }
+  for (const name of ['principles.md', 'CREDITS.md']) putFile(entry, path.join(pluginDir, name), fs.readFileSync(path.join(PLUGIN, name)))
   putFile(entry, path.join(pluginDir, 'agent.json'), JSON.stringify({ agent, scope }) + '\n')
 }
 
