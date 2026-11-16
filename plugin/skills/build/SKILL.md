@@ -24,10 +24,10 @@ Record every decision you take along the way in the decision list, including any
 You own one branch for the whole job. Tickets are a graph, not a list: at any moment some are unblocked.
 
 1. **Branch.** Create the job's branch from the default branch.
-2. **Hand out.** Give each unblocked ticket to a fresh subagent in its own worktree on its own branch, based on the job's branch. Run up to `subagent_count` at once. The brief holds the goal in one line and pointers to the plan, the ticket and this skill's testing reference. Don't copy their contents into it.
+2. **Hand out.** Give each unblocked ticket to a fresh subagent in its own worktree, detached at the tip of the job's branch (`git worktree add --detach`). A ticket gets no branch of its own, so nothing has to be force-deleted afterwards. Run up to `subagent_count` at once. The brief holds the goal in one line and pointers to the plan, the ticket and this skill's testing reference. Don't copy their contents into it.
 3. **Choose the model.** With `subagent_model` set to `auto`, a ticket marked simple gets the agent's fast model and one marked complex gets its strong model (Sonnet and Opus on Claude Code). Any other value is used for every ticket.
 4. **Check before merging.** When a subagent reports, read its diff yourself and run its tests. A report is not evidence. Give it one of three verdicts:
-   - **Verified:** merge it into the job's branch as one commit, mark the ticket done, and remove its worktree.
+   - **Verified:** bring its commits onto the job's branch as one commit (`git merge --squash <its last commit>`, then commit), mark the ticket done, and remove its worktree.
    - **Not verified:** send the ticket to a fresh subagent with the original brief plus what failed.
    - **Inconclusive:** treat it as not verified. It is never a pass.
 5. **Keep going.** Start whatever the merge unblocked. A merge conflict goes to a fresh subagent.

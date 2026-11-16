@@ -62,6 +62,7 @@ The whole text is in [plugin/mode.md](plugin/mode.md). Turn it off with the devf
 - **It asks once.** devflow looks facts up itself and takes the decisions it can recommend with confidence. The ones that are yours come in one round of at most five questions, each with a recommended answer. Say "grill me" for a full interview.
 - **It stops once.** A feature or a big job shows you one screen: what done means, what changes, the decisions, and for a big job the tickets. It waits for your go. A reply that changes the plan counts as the go.
 - **Then it runs to the end.** Nothing else waits on you except a decision that is yours or an action that can't be undone. The pull request lists every decision taken for you, so you can overrule any of them in review.
+- **You push.** With the git safety hook on, which is the default, the agent never pushes. At the ship step it gives you the push command and the pull request body, and opens the pull request once the branch is up. Turn the hook off if you want it to push by itself.
 
 Once a flow is running, just talk. You don't retype the command with each message.
 
@@ -87,7 +88,28 @@ Once a flow is running, just talk. You don't retype the command with each messag
 3. Each unblocked ticket is built by a fresh subagent in its own worktree, several at once. The main session reads every diff and reruns its tests before merging it.
 4. One branch, one commit per ticket, one pull request at the end
 
-Every step is also a skill you can run by itself, such as `/devflow:understand` or `/devflow:review`. `/devflow:wizard` writes a script for steps only you can do.
+### The skills
+
+Every step is also a command you can run by itself, with or without a flow.
+
+| Command | What it does |
+|---|---|
+| `/devflow:understand` | Reads the code around a task or question and says how it works, where a change belongs and what could bite. |
+| `/devflow:decide` | Settles the open decisions: finds facts, takes what it can recommend, asks you once. Say "grill me" for a full interview. |
+| `/devflow:prototype` | Throwaway code that answers one design question, deleted after the verdict. |
+| `/devflow:research` | Investigates a question against primary sources in the background and saves cited findings. |
+| `/devflow:shape` | Sketches types, signatures and module boundaries before any code. |
+| `/devflow:plan` | Writes what will be built and how it will be proven, cuts a big job into tickets, and waits for your go. |
+| `/devflow:build` | Builds test-first, directly or through subagents for a big job's tickets. |
+| `/devflow:diagnose` | The loop for bugs and slowdowns: a failing signal, a reproduction, a proven cause, a fix with a regression test. |
+| `/devflow:review` | Reviews a branch against the repo's standards and against its plan, with a fresh reviewer for each. |
+| `/devflow:check` | Finds what a change could break elsewhere and proves the one fact it is safe because of. |
+| `/devflow:challenge` | Two fresh subagents try to break the change. Only findings a run proves are kept. |
+| `/devflow:prove` | Drives the running app as a user would and keeps the evidence. |
+| `/devflow:ship` | Writes the pull request body with evidence, decisions and merge risk, then opens the pull request. |
+| `/devflow:write` | The writing standard for plans, ADRs, pull request bodies, commit messages and docs. |
+| `/devflow:learn` | Turns what went wrong in a session into a check, a type or a test. |
+| `/devflow:wizard` | Writes a script that walks you through steps only you can do, such as secrets or a dashboard. |
 
 ### Picking up later
 
@@ -127,7 +149,19 @@ Outside `/plugin`, put the same settings in a JSON file:
 
 The keys are `git_guard`, `no_comments` and `mode` (`true` or `false`), `adversarial_review` (`risky changes`, `always` or `never`), `subagent_count` (a number), `subagent_model` (`auto` or a model name) and `tracker` (`auto`, `github`, `gitlab` or `files`). For example: `{"subagent_count": 5}`.
 
-The project file overrides the user file, except that it can't turn the git guard off, so a cloned repo can't disarm it. In Claude Code, the `/plugin` options override both. devflow skips a missing or unreadable file and any value it doesn't know. `devflow settings` shows the result, with the fast and strong model `auto` uses on your agent.
+The project file overrides the user file, except that it can't turn the git guard off, so a cloned repo can't disarm it. In Claude Code, the `/plugin` options override both. devflow skips a missing or unreadable file and any value it doesn't know. To see the result, ask the agent to run `devflow settings`. It also shows the fast and strong model `auto` uses on your agent.
+
+### What runs in the background
+
+devflow installs five hooks. All are small local scripts.
+
+| When | What it does |
+|---|---|
+| Before each shell command | The git safety hook, only in a conversation that is on a flow. |
+| Session start | One line when the project has unfinished flows. |
+| Session start, and after compaction | Loads devflow mode and the no-comments rule, each if its setting is on. |
+| After each shell command | Links the conversation to a flow when the command was a `devflow flow` command. |
+| Each message you send | Reminds the agent which flow and step the conversation is on. |
 
 ### Coming from 1.2
 
@@ -151,7 +185,7 @@ npx github:itsrob00/devflow install --agent <codex|cursor|opencode>
 
 This puts devflow in your home folder. Add `--project` to put it in the current repo instead, under the git root, so a team can share one setup. The install:
 - copies devflow's skills into the agent's skills folder, each named `devflow-<skill>` the way that agent expects
-- writes the agent's hooks for the git guard and the flow reminders, plus the written fallbacks described below
+- writes the agent's hooks for the git guard, devflow mode and the flow reminders, plus the written fallbacks described below
 - records every file it wrote in `~/.config/devflow/installs.json` (`.devflow/installs.json` with `--project`)
 
 When it finishes, the install prints any step the agent still needs from you, such as trusting Codex's hooks.
@@ -207,7 +241,7 @@ Every install writes the git guard rules into the agent's always-on instructions
 
 - **Codex CLI.** Hooks run only in trusted projects. Until you trust a project, the written rules in `AGENTS.md` are all that guard it. If you keep an `AGENTS.override.md`, Codex reads it instead of `AGENTS.md` and never sees devflow's block, so copy the block across.
 - **Cursor.** Cursor's prompt hook can't add context, so the per-message reminder comes from the always-applied rule. The guard hook fails closed: if it errors, Cursor blocks the command. Cursor doesn't promise to load a rule from your home folder, so if devflow's rule doesn't show up in Cursor's rules, install with `--project` in each repo.
-- **OpenCode.** OpenCode has no session-start hook, so the plugin's per-prompt context hook carries the session-start reminder.
+- **OpenCode.** OpenCode has no session-start hook, so the plugin's per-prompt context hook carries devflow mode and the session-start reminder.
 
 The Codex `.rules` file is a second guard that doesn't depend on hooks. It blocks the guarded git commands in every session, not only during a flow, because it can't tell whether a flow is running. When you need one of them, run it yourself in a terminal; to lift the block, uninstall devflow for Codex. It only catches simple commands: Codex checks a `bash -c` script against the rules only when the script is a plain chain of commands, so a script with variables or `$(...)` gets past it. The hook guard still checks those.
 
