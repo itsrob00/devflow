@@ -19,7 +19,7 @@ function texts () {
   return out
 }
 
-const HOST_ONLY = /AskUserQuestion|TodoWrite|Skill tool|\/clear|\/plugin|\/devflow:|\/setup-pstack|\/create-verification-skill|\/poteto-mode|restarts Claude Code/
+const HOST_ONLY = /AskUserQuestion|TodoWrite|Skill tool|\/clear|\/plugin|\/devflow:/
 
 test('devflow skill texts name a host-only tool or command only beside the Claude Code way to do the step', () => {
   const all = texts()

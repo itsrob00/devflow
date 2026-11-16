@@ -65,7 +65,6 @@ function renderSkill (text, { adapter, skillsDir, name, pluginDir, ref }) {
   let out = expandPluginRoot(text, { adapter, skillsDir, pluginDir, ref })
     .replace(/\/devflow:([a-z-]+)/g, (_, n) => names(adapter.invoke, n))
     .replace(/` in Claude Code\)/g, '`)')
-    .replace(/; in Claude Code, `\/plugin`, under devflow, Configure options/, '')
     .replace(/^argument-hint:.*\r?\n/m, '')
     .replace(/^[^\n]*\(a hint the host fills in\): \$ARGUMENTS\r?\n\r?\n/m, '')
     .replace(/^If that line is empty or shows no text, (.)/m, (_, c) => c.toUpperCase())

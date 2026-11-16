@@ -3,7 +3,6 @@ export const ADAPTERS = {
     entrySkill: 'devflow-{name}',
     invoke: '$devflow-{name}',
     skills: { user: '.codex/skills', project: '.agents/skills' },
-    reads: ['.agents/skills', '.codex/skills'],
     instructions: { user: '.codex/AGENTS.md', project: 'AGENTS.md' },
     hooks: {
       format: 'claude-json',
@@ -21,7 +20,6 @@ export const ADAPTERS = {
     entrySkill: 'devflow-{name}',
     invoke: '/devflow-{name}',
     skills: { user: '.cursor/skills', project: '.cursor/skills' },
-    reads: ['.cursor/skills', '.agents/skills'],
     rule: { format: 'cursor-mdc', file: { user: '.cursor/rules/devflow.mdc', project: '.cursor/rules/devflow.mdc' } },
     hooks: {
       format: 'cursor-json',
@@ -36,7 +34,6 @@ export const ADAPTERS = {
     entrySkill: 'devflow-{name}',
     invoke: '@devflow-{name}',
     skills: { user: '.config/opencode/skills', project: '.opencode/skills' },
-    reads: ['.agents/skills', '.opencode/skills', '.config/opencode/skills'],
     instructions: { user: '.config/opencode/AGENTS.md', project: 'AGENTS.md' },
     hooks: {
       format: 'opencode-plugin',

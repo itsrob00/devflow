@@ -87,7 +87,7 @@ export function hookAgent (argv = process.argv) {
   return i >= 0 && argv[i + 1] ? argv[i + 1] : CLAUDE_CODE
 }
 
-export function claudeDir () {
+function claudeDir () {
   return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude')
 }
 
