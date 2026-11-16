@@ -1,14 +1,13 @@
 # Feature flow
 
-1. **Understand.** `how`: where the feature should live and how the code around it works.
-2. **Decide.** `grill-with-docs`: interview the user until the plan holds up, recording ADRs and glossary terms. When a question needs a runnable answer (a state model, a UI to look at), use `prototype`, then return to the grilling with what it showed.
-3. **Write it down.** Only when the build needs more than this session: `to-spec`, then `to-tickets`. Save with `devflow flow set <id> tickets=<folder or tracker ref> step="4. Shape"`, then stop. Tell the user to start a fresh session (`/clear` in Claude Code) and run devflow's continue skill (`/devflow:continue` in Claude Code) for each ticket (it offers the first open, unblocked one), so each build starts with a clean context. Keep steps 1 to 3 in this one context.
-   - If several tickets can be built in parallel, also offer `implement-spec`: one run builds them all on an integration branch with parallel subagents and runs `code-review` (more tokens, less of the user's time). If the user picks it, add `next="implement-spec"` when saving; the next session runs it in place of steps 4 and 5, then continues at step 6.
-   - A run that continues a ticket starts at step 4. Read the ticket and the spec it links. When the ticket ships, set or add a `Status: done` line in its file (or close it on the tracker) and save `step="4. Shape"`. If it is one of several from `to-tickets`, end the run with the remaining-tickets list (`big.md` step 3, in this folder), and when none are left, save the last ticket's PR with `pr=` (or run `devflow flow done <id>` if nothing waits on a merge).
-4. **Shape.** `architect` when the change adds types or crosses a module boundary. Skip it for code that stays inside one function.
-5. **Build.** `implement`. It drives `tdd`, runs `code-review`, and commits. Don't run `code-review` again.
-6. **Check.**
-   - `blast-radius` on the diff since the branch point, with its safety fact proven by running code or marked unproven.
-   - `interrogate` per the multi-model review setting. With **risky changes**, run it when the diff touches auth, permissions, payments, data migrations or deletion, concurrency, or a public API. Fix what it puts under "Act on". Its reviewers should come from more than one model family: on an agent where `devflow pstack-models` ends with `other model family: not available`, say in your summary that the review was single-family.
-7. **Prove.** If the project has a `verify-*` skill (`devflow doctor feature` lists it), drive the feature with it as a user would and save the evidence. If not, ask once whether to build one now with `create-verification-skill` (it builds, launches and drives the app, so it takes a few minutes, once per repo). On yes, build it and use it; on no, say the change is unproven in the running app.
-8. **Ship.** `pr` to write the PR body, using the evidence from step 7. Pushing is the user's (see **Git** in the start skill): give them the push command, then `gh pr create --body-file <file>`, and save `devflow flow set <id> pr=<branch> step="8. Ship"`. The flow is marked done when that PR merges.
+Steps 1 to 4 end at the one stop. Steps 5 to 9 run without waiting.
+
+1. **Understand.** `understand`. Keep its three or four lines for the plan.
+2. **Decide.** `decide`. When a decision needs a runnable answer, `prototype`. When it waits on docs or an API fact, `research` in the background.
+3. **Shape.** `shape`, when the change adds types or crosses a module boundary. Otherwise skip it.
+4. **Plan.** `plan`. Show the plan and wait for the user's go. If the plan says the work needs tickets, it is a big job: `devflow flow set <id> flow=big` and continue with `big.md` in this folder at its step 5.
+5. **Build.** Create a branch for the feature unless you are already on one that isn't the default branch, and save it with `branch=`. Then `build`, on its direct path.
+6. **Review.** `review`.
+7. **Check.** `check` on the diff since the branch point. Then `challenge`, by the adversarial review setting: always, never, or with risky changes only when the diff touches auth, permissions, payments, data migration or deletion, concurrency, or a public API.
+8. **Prove.** `prove`.
+9. **Ship.** `ship`. Save `pr=`.

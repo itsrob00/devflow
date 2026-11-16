@@ -80,14 +80,13 @@ test('the session-start reminder and rules answer with additional_context for Cu
   await s.feed(devflow, ['flow', 'new', 'bug', 'Cart total'], '', {}, s.project)
   const reminder = JSON.parse((await s.feed(devflow, ['reminder', '--agent', 'cursor'], start)).stdout)
   assert.deepEqual(Object.keys(reminder), ['additional_context'])
-  assert.match(reminder.additional_context, /^devflow: 1 unfinished flow here \(Cart total\)\. Run devflow's continue skill to pick one up \(\/devflow-continue in Cursor\)\./)
+  assert.match(reminder.additional_context, /^devflow: 1 unfinished flow here \(Cart total\)\. Run devflow's continue skill to pick one up \(\/devflow-continue in Cursor\)\. When the user asks to keep going without it, use the devflow-start skill /)
   assert.doesNotMatch(reminder.additional_context, /Claude Code/)
-  assert.match(reminder.additional_context, /point the user to devflow's continue skill/)
 
   const rules = JSON.parse((await s.feed(devflow, ['rules', '--agent', 'cursor'], start)).stdout)
   assert.deepEqual(Object.keys(rules), ['additional_context'])
-  assert.match(rules.additional_context, /^Don't add comments or docstrings/)
-  assert.equal((await s.feed(devflow, ['rules', '--agent', 'cursor'], start, { CLAUDE_PLUGIN_OPTION_NO_COMMENTS: 'false' })).stdout, '')
+  assert.match(rules.additional_context, /^# devflow mode\n[\s\S]*\n\nDon't add comments or docstrings/)
+  assert.equal((await s.feed(devflow, ['rules', '--agent', 'cursor'], start, { CLAUDE_PLUGIN_OPTION_NO_COMMENTS: 'false', CLAUDE_PLUGIN_OPTION_MODE: 'false' })).stdout, '')
 })
 
 test("a Cursor conversation is linked to its flow by postToolUse, and the guard then holds in it", async () => {

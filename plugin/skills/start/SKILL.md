@@ -1,7 +1,7 @@
 ---
 name: start
-description: Start dev work with devflow. Picks a flow (feature, bug, big job, small change), runs each step's skill from Matt Pocock's skills and pstack, and proves the result, setting the repo up first if needed. With nothing, picks up unfinished work like devflow's continue skill.
-argument-hint: "[what you want done]"
+description: Run development work as a devflow flow. Picks the flow (small change, feature, bug or big job), runs each step's skill, stops once to show the plan, then builds, proves and ships. With nothing, picks up unfinished work.
+argument-hint: "[what you want done, or nothing to keep going]"
 disable-model-invocation: true
 ---
 
@@ -11,85 +11,56 @@ If that line is empty or shows no text, the task is in the user's message: take 
 
 `devflow` means `node "${CLAUDE_PLUGIN_ROOT}/scripts/devflow.mjs"`, run from the project root.
 
-Before anything else, see what the task is:
+If devflow mode's seven rules aren't in context, read `${CLAUDE_PLUGIN_ROOT}/mode.md`. They apply to every step. Inside a flow, the flow's steps replace the mode's own six.
 
-- Nothing, a saved flow's id or number, or words asking to continue: follow `${CLAUDE_PLUGIN_ROOT}/skills/continue/SKILL.md` with it as the request; it brings you back here with `resume <id>` as the task.
-- Anything else is work to do: continue below.
+## 1. Keep going, or start
 
-## Running a step's skill
+- **Nothing, "keep going", or a saved flow's id or title:** run `devflow flows`. With one unfinished flow, or one the user named, take it. With several and none named, ask which in one question. With none, say there is nothing unfinished and stop. Then run `devflow flow show <id>` and continue that flow's file at the saved step. Don't redo a finished step and don't explore the code again to get oriented: the plan, the decision list and the tickets it lists are the context.
+- **Anything else** is new work. Go on to step 2.
 
-Each step names a skill. Run it with `devflow show <skill>` and follow what it prints, not with the agent's own skill-loading tool (Claude Code's Skill tool) and not your own way. Show each skill once per conversation; if its text is still in context, follow it without showing it again. A step that looks obvious still runs its skill: an easy bug still gets `diagnosing-bugs`' red loop and `blast-radius`'s proven safety fact. Where a skill asks the user something, ask (as a multiple-choice question where the agent supports it, such as Claude Code's `AskUserQuestion`); don't answer for them. If the user said they're away, take the recommended option and say which.
+## 2. Pick the flow
 
-## Grilling
-
-`grilling` (which `grill-with-docs` and `wayfinder` also run) follows the grilling setting from `devflow settings`. If the user asks in this conversation for only the important questions, or for the full grilling, that wins for this run.
-
-- **full**: work the whole design tree, as the skill says.
-- **important**: ask only the questions whose answer changes the design or the scope, is costly to undo later, or has no answer you can recommend with confidence. Settle every other question with your recommended answer instead of asking it.
-
-Either way, order each round most important first. In the first round, tell the user once that they can stop at any point and you'll take your recommended answers for the rest. Where the agent asks multiple-choice questions, end each round with one more: keep going (with how many questions you still expect), or stop here and take the recommendations. A reply like "that's enough" or "you decide the rest" also stops it.
-
-When the user stops, or in important mode, settle each remaining question with your recommended answer, including ones the settled answers open up, and close with one list of those decisions and their answers, so the user can overrule any of them in one reply. Record them like answered ones (ADRs, glossary terms). That list ends the grilling: it counts as the empty frontier and the user's confirmation, unless the user overrules something, which you then settle before moving on. Keep the decisions you settled this way in the handoff's Open line if the flow continues in another session.
-
-## Saved flows
-
-Each flow is saved under `.devflow/flows/<id>/`; the next session starts from it. Keep it current:
-
-- `devflow flow set <id> step="<n>. <name>"` each time a step finishes, naming the step to continue from. Add `next="..."` when the next session needs one more line (which ticket, which decision is open), and `tickets=<folder or tracker ref>` when `to-tickets` or `wayfinder` publishes tickets.
-- `devflow flow set <id> pr=<branch, PR number or url>` when the work goes up as a PR. A flow with a PR is finished when the PR merges: `devflow flows` asks `gh` and marks it done then, so don't run `flow done` for it.
-- `devflow flow done <id>` when a flow finishes with no PR to wait on.
-
-One conversation works on one flow: use only its id, and don't read other flows' folders or take steps from them, even related ones.
-
-## Resuming
-
-`resume <id>`: skip step 1 (don't pick a flow, rerun `doctor` or `settings`, or explore the code to get oriented). Run `devflow flow show <id>` and go to **2. Run the flow** with the flow it names, starting the todo list at its step. Its handoff, if any, gives the map, playbook, decision log and spec paths, the open ticket, and settings the user changed. A Feature with a next ticket works it from Feature step 4. A Big flow continues `big.md` at the saved step.
-
-Don't rerun a step an earlier session finished. Run `devflow show` for a skill when you reach its step, not before; if it reports the skill missing, run `devflow doctor <flow>` then.
-
-## 1. Pick the flow
-
-Read the task, and the code it touches if needed. Pick one:
+Read the task, and the code it touches if you need to.
 
 | Flow | When |
 |---|---|
-| **Feature** | New or changed behavior that needs a design decision or touches more than a couple of files. |
-| **Bug** | Something is broken, throws, fails, or got slower. |
-| **Big** | More than one session can hold: a migration, a greenfield project, a foggy multi-part effort. |
-| **Small** | Clear what to do, one or two files, nothing for the user to decide. New behavior is a Feature, however small. |
+| **Small** | Clear what to do, one or two files, nothing for the user to decide. |
+| **Feature** | New or changed behaviour that fits one session. |
+| **Bug** | Something is broken, throws, fails or got slower. |
+| **Big** | More than one session can hold: a migration, a new project, a change in many parts. |
 
-Say the flow and why in one line, then continue; ask only when two fit equally well. Save it with `devflow flow new <flow> <short title>` and give the user the id. If a Small change grows past two files or makes you choose behavior the task didn't specify, switch to Feature with `devflow flow set <id> flow=feature` and say so.
+Say the flow and why in one line and continue. Ask only when two fit equally well.
 
-Run `devflow doctor <flow>`. If it lists missing skills, show them with its install line and stop. If it says NOT READY for anything else, the repo isn't set up yet: say so in one line, follow `${CLAUDE_PLUGIN_ROOT}/skills/setup/SKILL.md`, then come back here with the same task and flow. If it ran `git init`, pass that line on.
+For every flow but Small, save it: `devflow flow new <flow> <short title>`. It prints the flow's id and folder. The plan, the decision list and any ticket files live in that folder.
 
-Run `devflow settings`. The user's words in this conversation override them for this run.
+Run `devflow settings` once. What the user says in this conversation overrides a setting for this run.
 
-## 2. Run the flow
+If the folder isn't a git repository, run `git init` and say so.
 
-Read `${CLAUDE_PLUGIN_ROOT}/skills/start/flows/<flow>.md` for `feature`, `bug` or `big`. For Small, by setting:
+## 3. Run the flow
 
-- **poteto-mode**: `poteto-mode` with the task. It picks its own playbook.
-- **direct**: make the change, run the closest tests and the type check, and show the diff.
+Read `${CLAUDE_PLUGIN_ROOT}/skills/start/flows/<flow>.md` and work through its steps in order.
 
-Keep a todo list (Claude Code's `TodoWrite`, or a checklist in the conversation) whose first items are the flow's steps, each with its skill. Mark a step done only after you ran `devflow show` for its skill and met that skill's completion criteria. A skipped step stays listed with `skip: <reason>`.
+- **A step names a skill.** The skill `x` is the file `${CLAUDE_PLUGIN_ROOT}/skills/x/SKILL.md`. Read it when you reach its step and follow it to its "Done when" line. Read each skill once per conversation.
+- **A step that looks obvious still runs its skill.** A skipped step is reported as skipped, with the reason.
+- **One stop.** A flow with a plan shows it and waits once for the user's go. Nothing else waits on the user except a decision that is theirs or an action that cannot be undone.
+- **Save as you go.** After each step, `devflow flow set <id> step="<n>. <name>"` with the step to continue from. Add `next="..."` when a later session needs one more line, `branch=<name>` when the flow gets its branch, `tickets=<issue or folder>` when tickets are published, and `pr=<number or url>` when the pull request is open.
+- **Keep a visible list** of the flow's steps (Claude Code's `TodoWrite`, or a checklist in the conversation) and mark each as it finishes.
+
+One flow at a time. If the user asks for unrelated work in the middle of one, say the current flow is saved, then start the new one.
+
+A flow that outgrows its kind changes kind: `devflow flow set <id> flow=<kind>`, said in one line.
 
 ## Git
 
-With the git guard on, `git push`, `reset --hard`, `clean -f`, `branch -D`, and commands that discard the whole working tree are blocked. Run a blocked command on its own, never chained after a commit. When a step needs one, give the user the exact command and continue with what doesn't depend on it. Never look for another way to do the same thing.
-
-When a step needs something only the user can do (secrets, infrastructure, a third-party dashboard, a one-off cutover) and it takes more than one command, run `wizard` to hand them a script for it.
+With the git guard on, `git push`, `reset --hard`, `clean -f`, `branch -D` and commands that discard the whole working tree are blocked while a flow runs. Run a blocked command on its own, never chained after a commit. When a step needs one, give the user the exact command and continue with whatever doesn't depend on it. Never look for another way to do the same thing.
 
 ## Finish
 
-Save where the flow stands. Finished and going up as a PR: save its `pr=` (it's marked done when the PR merges). Finished with no PR: `devflow flow done <id>`. If work is left, `devflow flow set <id> step=...` and write a short handoff to `.devflow/flows/<id>/handoff.md` (replacing the one there) with only what `devflow flow show` doesn't give:
+- A flow with a pull request is finished when it merges. `devflow flows` notices and marks it done, so don't mark it yourself.
+- A flow with no pull request: `devflow flow done <id>`.
+- If the session ends with work left, the saved step is enough. Tell the user that devflow's continue skill picks it up in any later session (`/devflow:continue` in Claude Code).
 
-```
-# <title>
-Flow: <Feature|Bug|Big|Small> · continue from: <step>, <ticket if any>
-Done this session: <one line>
-Open: <decisions or questions still waiting on the user>
-Paths: <spec, map or playbook, decision log, branch>
-Settings changed: <any the user overrode, or none>
-```
+Report in a few lines: what changed, the evidence (the test run, the safety fact, the proof from the running app), the decisions you took for the user, any step you skipped and why, and what is left for them.
 
-Then report: the flow, the skills that ran (only those loaded with `devflow show`; list other steps as skipped, with why), what changed, the evidence (test runs, the `verify-*` run, `blast-radius`'s safety fact), and what's left for the user. If work is left, say the next session picks it up: start a fresh session (`/clear` in Claude Code) and run devflow's continue skill (`/devflow:continue` in Claude Code). If the session hit a snag worth learning from, suggest devflow's wrap skill (`/devflow:wrap` in Claude Code); its handoff replaces the short one.
+If the user corrected the same kind of mistake twice in this session, add one line suggesting devflow's learn skill (`/devflow:learn` in Claude Code). Don't run it unasked.

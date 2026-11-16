@@ -15,7 +15,7 @@ test('install --agent opencode puts every file where OpenCode V2 reads it, regis
   assert.equal(r.status, 0, r.stderr)
 
   const skills = path.join(s.home, '.config', 'opencode', 'skills')
-  for (const n of ['start', 'continue', 'setup', 'wrap']) {
+  for (const n of ['start', 'continue', 'learn', 'build']) {
     const text = fs.readFileSync(path.join(skills, `devflow-${n}`, 'SKILL.md'), 'utf8')
     assert.match(text, new RegExp(`^name: devflow-${n}$`, 'm'))
     assert.doesNotMatch(text, /CLAUDE_PLUGIN_ROOT/)
@@ -23,7 +23,7 @@ test('install --agent opencode puts every file where OpenCode V2 reads it, regis
   }
   const start = fs.readFileSync(path.join(skills, 'devflow-start', 'SKILL.md'), 'utf8')
   assert.ok(start.includes('`@devflow-continue`'))
-  for (const f of ['feature', 'bug', 'big']) assert.ok(fs.existsSync(path.join(skills, 'devflow-start', 'flows', `${f}.md`)))
+  for (const f of ['small', 'feature', 'bug', 'big']) assert.ok(fs.existsSync(path.join(skills, 'devflow-start', 'flows', `${f}.md`)))
 
   const plugin = path.join(config(s.home), 'devflow-plugin')
   const pkg = readJson(path.join(plugin, 'package.json'))
@@ -59,9 +59,7 @@ test('install --agent opencode puts every file where OpenCode V2 reads it, regis
   assert.ok(entry.files.includes(path.join(plugin, 'package.json')))
   assert.deepEqual(entry.blocks.map(b => b.file).sort(), [path.join(config(s.home), 'AGENTS.md'), path.join(config(s.home), 'opencode.jsonc')].sort())
 
-  const [matt, pstack] = s.calls()
-  assert.deepEqual(matt.slice(0, 5), ['skills@1.7.4', 'add', 'mattpocock/skills', '-a', 'opencode'])
-  assert.deepEqual(pstack.slice(0, 5), ['skills@1.7.4', 'add', 'backnotprop/pstack', '-a', 'opencode'])
+  assert.deepEqual(s.calls(), [])
 })
 
 test('install merges into an existing opencode.json and uninstall removes only its own entry', () => {
@@ -82,7 +80,7 @@ test('install merges into an existing opencode.json and uninstall removes only i
   assert.equal(r.status, 0, r.stderr)
   assert.deepEqual(tree(s.home), before)
   assert.deepEqual(readJson(path.join(config(s.home), 'opencode.json')), mine)
-  assert.equal(s.calls().length, 4)
+  assert.deepEqual(s.calls(), [])
 })
 
 test('install writes into opencode.jsonc when that is the config that exists', () => {
@@ -241,7 +239,7 @@ const settings = (s, json) => write(path.join(s.home, '.config', 'devflow', 'set
 test('the context hook gives the flow reminder when a flow is linked and nothing when none is', async () => {
   const s = sandbox({ name: 'devflow-opencode' })
   assert.equal(s.run('install', '--agent', 'opencode').status, 0)
-  settings(s, { no_comments: false })
+  settings(s, { no_comments: false, mode: false })
   const { hooks, proj } = await loaded(s)
   const ctx = (sessionID) => ({ sessionID, system: [{ type: 'text', text: 'base prompt' }], messages: [], tools: {}, options: {} })
 
@@ -270,7 +268,7 @@ test('the context hook gives the flow reminder when a flow is linked and nothing
 test('the context hook carries the session-start reminder on every call of a session that is not on a flow', async () => {
   const s = sandbox({ name: 'devflow-opencode' })
   assert.equal(s.run('install', '--agent', 'opencode').status, 0)
-  settings(s, { no_comments: false })
+  settings(s, { no_comments: false, mode: false })
   const { hooks, proj } = await loaded(s)
   const ctx = (sessionID) => ({ sessionID, system: [], messages: [], tools: {}, options: {} })
 
@@ -295,24 +293,24 @@ test('the context hook carries the session-start reminder on every call of a ses
   assert.match(linked.system[0].text, /on flow cart/)
 })
 
-test('the context hook adds the no-comments rule when the setting is on and stays out of the way when it is off', async () => {
+test('the context hook adds the standing rules the settings turn on and stays out of the way when they are off', async () => {
   const s = sandbox({ name: 'devflow-opencode' })
   assert.equal(s.run('install', '--agent', 'opencode').status, 0)
   const ctx = (sessionID) => ({ sessionID, system: [], messages: [], tools: {}, options: {} })
 
-  settings(s, { no_comments: false })
+  settings(s, { no_comments: false, mode: false })
   const off = await loaded(s)
   const quiet = ctx('ses_a')
   await off.hooks.session.context(quiet)
   assert.equal(quiet.system.length, 0)
 
-  settings(s, { no_comments: true })
+  settings(s, { no_comments: true, mode: true })
   const on = await loaded(s)
   for (const id of ['ses_a', 'ses_a', 'ses_b']) {
     const e = ctx(id)
     await on.hooks.session.context(e)
     assert.equal(e.system.length, 1)
-    assert.match(e.system[0].text, /comments or docstrings/)
+    assert.match(e.system[0].text, /^# devflow mode\n[\s\S]*\n\nDon't add comments or docstrings/)
   }
 })
 

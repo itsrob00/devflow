@@ -24,14 +24,19 @@ function reminder (agent, how) {
 }
 
 for (const [agent, [wording, how]] of Object.entries(WORDING)) {
-  test(`the reminder on ${agent} names that agent's own way to run continue`, () => {
+  test(`the reminder on ${agent} names that agent's own way to run continue, and points at the installed start skill by name`, () => {
     const out = reminder(agent, how)
-    assert.ok(out.includes(`(${wording})`), out)
+    const reply = JSON.parse(out)
+    const context = reply.hookSpecificOutput?.additionalContext ?? reply.additional_context
+    assert.ok(context.includes(`(${wording}). When the user asks to keep going without it, use the devflow-start skill `), out)
     assert.ok(!out.includes('Claude Code'), out)
-    assert.ok(!out.includes('/devflow:continue'), out)
+    assert.ok(!out.includes('CLAUDE_PLUGIN_ROOT'), out)
   })
 }
 
-test('the reminder on the original host still names /devflow:continue in Claude Code', () => {
-  assert.ok(reminder('claude-code', 'env').includes('(/devflow:continue in Claude Code)'))
+test('the reminder on the original host names /devflow:continue, and points at the start skill file with the plugin root', () => {
+  const reply = JSON.parse(reminder('claude-code', 'env'))
+  assert.equal(reply.systemMessage, "devflow: 1 unfinished flow here (Cart total). Run devflow's continue skill to pick one up (/devflow:continue in Claude Code).")
+  const plugin = path.dirname(path.dirname(script))
+  assert.ok(reply.hookSpecificOutput.additionalContext.includes(`read ${path.join(plugin, 'skills', 'start', 'SKILL.md')} and follow it (in devflow's files, \${CLAUDE_PLUGIN_ROOT} means ${plugin})`))
 })

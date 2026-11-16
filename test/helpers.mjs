@@ -13,9 +13,6 @@ export const devflow = path.join(scripts, 'devflow.mjs')
 export const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'))
 
 export const version = readJson(path.join(repo, 'package.json')).version
-const marketplace = readJson(path.join(repo, '.claude-plugin', 'marketplace.json'))
-export const listed = name => marketplace.plugins.find(p => p.name === name).skills.map(s => path.posix.basename(s))
-
 export const write = (file, text) => {
   fs.mkdirSync(path.dirname(file), { recursive: true })
   fs.writeFileSync(file, text)

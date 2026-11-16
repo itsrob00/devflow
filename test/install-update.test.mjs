@@ -20,7 +20,7 @@ test('a --project install writes only inside the repo, with paths relative to it
   const start = fs.readFileSync(p('.agents', 'skills', 'devflow-start', 'SKILL.md'), 'utf8')
   assert.match(start, /^name: devflow-start$/m)
   assert.ok(start.includes('node ".devflow/runtime/codex/scripts/devflow.mjs"'))
-  assert.ok(start.includes('.agents/skills/devflow-continue/SKILL.md'))
+  assert.ok(start.includes('.agents/skills/devflow-x/SKILL.md'))
   assert.deepEqual(readJson(p('.devflow', 'runtime', 'codex', 'agent.json')), { agent: 'codex', scope: 'project' })
   assert.ok(fs.existsSync(p('.devflow', 'runtime', 'codex', 'scripts', 'devflow-guard.mjs')))
   assert.ok(fs.existsSync(p('.devflow', 'runtime', 'codex', 'hooks', 'hooks.json')))
@@ -45,12 +45,7 @@ test('a --project install writes only inside the repo, with paths relative to it
   assert.ok(entry.files.includes('.devflow/runtime/codex/agent.json'))
   assert.deepEqual(entry.blocks.map(b => b.file).sort(), ['.codex/hooks.json', 'AGENTS.md'])
 
-  const calls = s.skillsCalls()
-  assert.equal(calls.length, 2)
-  for (const c of calls) {
-    assert.ok(!c.args.includes('-g'))
-    assert.equal(fs.realpathSync(c.cwd), fs.realpathSync(s.project))
-  }
+  assert.deepEqual(s.skillsCalls(), [])
 })
 
 test('a --project uninstall removes only what it wrote, and not the repo\'s own files', () => {
@@ -60,15 +55,11 @@ test('a --project uninstall removes only what it wrote, and not the repo\'s own 
   write(path.join(s.project, '.agents', 'skills', 'mine', 'SKILL.md'), '---\nname: mine\n---\n')
   const before = tree(s.project)
   assert.equal(s.runProject('install', '--agent', 'codex', '--project').status, 0)
-  assert.equal(s.skillsCalls().length, 2)
   const r = s.runProject('uninstall', '--agent', 'codex', '--project')
   assert.equal(r.status, 0, r.stderr)
   assert.deepEqual(tree(s.project), before)
   assert.deepEqual(fs.readdirSync(s.home), [])
-  const [addMatt, addPstack, ...removes] = s.skillsCalls()
-  const names = c => c.args.slice(c.args.indexOf('-s') + 1, c.args.indexOf('-y'))
-  assert.deepEqual(removes.map(c => c.args), [['skills@1.7.4', 'remove', ...names(addMatt), '-y'], ['skills@1.7.4', 'remove', ...names(addPstack), '-y']])
-  assert.equal(fs.realpathSync(removes[0].cwd), fs.realpathSync(s.project))
+  assert.deepEqual(s.skillsCalls(), [])
 })
 
 test('a project install and a user install of one agent coexist, and each uninstall touches only its own scope', () => {
@@ -137,18 +128,15 @@ test('update --local rewrites the installed copy from the current source and mov
   assert.deepEqual(s.launches(), [])
 })
 
-test('update --local re-runs npx skills add for each recorded agent with the current skill lists', () => {
+test('update --local rewrites a recorded install from this copy without calling npx skills', () => {
   const s = sandbox({ name: 'devflow-update' })
   assert.equal(s.run('install', '--agent', 'codex').status, 0)
-  const first = s.skillsCalls().map(c => c.args)
+  const start = path.join(s.home, '.codex', 'skills', 'devflow-start', 'SKILL.md')
+  const fresh = fs.readFileSync(start, 'utf8')
+  fs.appendFileSync(start, '\nstale\n')
   assert.equal(s.run('update', '--local').status, 0)
-  const calls = s.skillsCalls().map(c => c.args)
-  assert.equal(calls.length, 4)
-  assert.deepEqual(calls.slice(2), first)
-  assert.deepEqual(calls[2].slice(0, 5), ['skills@1.7.4', 'add', 'mattpocock/skills', '-a', 'codex'])
-  assert.deepEqual(calls[3].slice(0, 5), ['skills@1.7.4', 'add', 'backnotprop/pstack', '-a', 'codex'])
-  assert.equal(calls[2].length, 5 + 1 + 20 + 2)
-  assert.equal(calls[3].length, 5 + 1 + 43 + 2)
+  assert.equal(fs.readFileSync(start, 'utf8'), fresh)
+  assert.deepEqual(s.skillsCalls(), [])
 })
 
 test('update --local covers the user install and this repo\'s project install, and --project only the latter', () => {
@@ -167,7 +155,6 @@ test('update --local covers the user install and this repo\'s project install, a
   assert.equal(r.status, 0, r.stderr)
   assert.ok(!fs.readFileSync(projectStart, 'utf8').includes('stale'))
   assert.ok(fs.readFileSync(userStart, 'utf8').includes('stale'))
-  assert.ok(s.skillsCalls().slice(4).every(c => !c.args.includes('-g')))
 
   mark(projectStart)
   r = s.runIn(sub, 'update', '--local')
@@ -220,106 +207,32 @@ test('update says so when nothing is recorded, and changes nothing', () => {
   assert.equal(s.run('install', '--agent', 'codex', '--local').status, 2)
 })
 
-function realisticSkills (s) {
-  const stub = path.join(s.outside, 'real-skills-stub.mjs')
-  write(stub, [
-    "import fs from 'node:fs'",
-    "import os from 'node:os'",
-    "import path from 'node:path'",
-    "const args = process.argv.slice(2)",
-    "const dir = path.join(os.homedir(), '.agents')",
-    "const lockFile = path.join(dir, '.skill-lock.json')",
-    "let lock = { version: 3, skills: {} }",
-    "try { lock = JSON.parse(fs.readFileSync(lockFile, 'utf8')) } catch {}",
-    "if (args[1] === 'add') {",
-    "  for (const name of args.slice(args.indexOf('-s') + 1, args.indexOf('-y'))) {",
-    "    fs.mkdirSync(path.join(dir, 'skills', name), { recursive: true })",
-    "    fs.writeFileSync(path.join(dir, 'skills', name, 'SKILL.md'), 'upstream')",
-    "    lock.skills[name] = { source: args[2] }",
-    "  }",
-    "} else {",
-    "  for (const name of args.slice(2).filter(a => !a.startsWith('-'))) {",
-    "    fs.rmSync(path.join(dir, 'skills', name), { recursive: true, force: true })",
-    "    delete lock.skills[name]",
-    "  }",
-    "}",
-    "fs.writeFileSync(lockFile, JSON.stringify(lock))",
-    ''
-  ].join('\n'))
-  s.env.DEVFLOW_SKILLS_CMD = stub
-}
-
-test('uninstall removes the empty skills folder and lock file that npx skills left behind, when devflow\'s install created them', () => {
-  const s = sandbox({ name: 'devflow-update' })
-  realisticSkills(s)
-  assert.equal(s.run('install', '--agent', 'codex').status, 0)
-  assert.ok(fs.existsSync(path.join(s.home, '.agents', '.skill-lock.json')))
-  assert.equal(s.run('update', '--local').status, 0)
-  const r = s.run('uninstall', '--agent', 'codex')
-  assert.equal(r.status, 0, r.stderr)
-  assert.deepEqual(fs.readdirSync(s.home), [])
-})
-
-test('uninstall leaves a skills folder and lock file that were there before devflow, even when empty', () => {
-  const s = sandbox({ name: 'devflow-update' })
-  realisticSkills(s)
-  write(path.join(s.home, '.agents', '.skill-lock.json'), JSON.stringify({ version: 3, skills: {} }))
-  fs.mkdirSync(path.join(s.home, '.agents', 'skills'), { recursive: true })
-  const before = tree(s.home)
-  assert.equal(s.run('install', '--agent', 'codex').status, 0)
-  assert.equal(s.run('uninstall', '--agent', 'codex').status, 0)
-  assert.deepEqual(tree(s.home), before)
-})
-
-test('uninstall keeps the lock file and folder while skills from elsewhere remain in them', () => {
-  const s = sandbox({ name: 'devflow-update' })
-  realisticSkills(s)
-  assert.equal(s.run('install', '--agent', 'codex').status, 0)
-  const lockFile = path.join(s.home, '.agents', '.skill-lock.json')
-  const lock = readJson(lockFile)
-  lock.skills['someone/else'] = { source: 'someone/else' }
-  write(lockFile, JSON.stringify(lock))
-  write(path.join(s.home, '.agents', 'skills', 'theirs', 'SKILL.md'), 'theirs')
-  assert.equal(s.run('uninstall', '--agent', 'codex').status, 0)
-  assert.deepEqual(Object.keys(readJson(lockFile).skills), ['someone/else'])
-  assert.ok(fs.existsSync(path.join(s.home, '.agents', 'skills', 'theirs', 'SKILL.md')))
-})
-
 const SKILL_HOMES = { codex: ['.codex', 'skills'], opencode: ['.config', 'opencode', 'skills'] }
 const INVOKES = { codex: '$devflow-continue', opencode: '@devflow-continue' }
 
 for (const [first, second] of [['codex', 'opencode'], ['opencode', 'codex']]) {
-  test(`${first} and ${second} installed in one user scope: each keeps its own skills when the other is uninstalled, and the upstream skills stay until the last one goes`, () => {
+  test(`${first} and ${second} installed in one user scope: each keeps its own skills when the other is uninstalled`, () => {
     const s = sandbox({ name: 'devflow-update' })
-    realisticSkills(s)
     assert.equal(s.run('install', '--agent', first).status, 0)
     assert.equal(s.run('install', '--agent', second).status, 0)
-    const upstream = path.join(s.home, '.agents', 'skills')
-    const lockFile = path.join(s.home, '.agents', '.skill-lock.json')
     const own = agent => path.join(s.home, ...SKILL_HOMES[agent])
     assert.deepEqual(readJson(s.userRecord).map(e => e.agent), [first, second])
     assert.ok(fs.readFileSync(path.join(own(first), 'devflow-start', 'SKILL.md'), 'utf8').includes(INVOKES[first]))
     assert.ok(fs.readFileSync(path.join(own(second), 'devflow-start', 'SKILL.md'), 'utf8').includes(INVOKES[second]))
-    assert.ok(!fs.existsSync(path.join(upstream, 'devflow-start')))
     const secondSkills = tree(own(second))
 
     const r = s.run('uninstall', '--agent', first)
     assert.equal(r.status, 0, r.stderr)
-    assert.match(r.stdout, /another agent installed here still uses them/)
     assert.ok(!fs.existsSync(own(first)))
     assert.deepEqual(tree(own(second)), secondSkills)
-    assert.ok(fs.existsSync(path.join(upstream, 'tdd', 'SKILL.md')))
-    assert.ok(Object.keys(readJson(lockFile).skills).length > 0)
-    const record = readJson(s.userRecord)
-    assert.deepEqual(record.map(e => e.agent), [second])
-    assert.ok(record[0].upstream.dirs.length > 0)
-    assert.ok(record[0].upstream.files.length > 0)
+    assert.deepEqual(readJson(s.userRecord).map(e => e.agent), [second])
     assert.ok(fs.existsSync(path.join(s.home, '.config', 'devflow', 'runtime', second, 'agent.json')))
     assert.ok(!fs.existsSync(path.join(s.home, '.config', 'devflow', 'runtime', first)))
 
     const last = s.run('uninstall', '--agent', second)
     assert.equal(last.status, 0, last.stderr)
     assert.deepEqual(fs.readdirSync(s.home), [])
+    assert.deepEqual(s.skillsCalls(), [])
   })
 }
 
@@ -413,6 +326,6 @@ test('devflow active works from an installed runtime copy, pointing at the insta
   assert.equal(active.status, 0, active.stderr)
   const text = JSON.parse(active.stdout).hookSpecificOutput.additionalContext
   assert.match(text, /^devflow: on flow csv-export \(Feature: CSV export\)/)
-  assert.ok(text.includes('devflow show devflow-start'))
+  assert.ok(text.includes("If the start skill isn't in context, use the devflow-start skill, then run devflow flow show csv-export."))
   assert.doesNotMatch(text, /SKILL\.md/)
 })
