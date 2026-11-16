@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { installer, listed, readJson, repo, sandbox, tree, version, write } from './helpers.mjs'
+import { installer, readJson, repo, sandbox, tree, version, write } from './helpers.mjs'
 
 const source = path.join(repo, 'plugin')
 
@@ -77,28 +77,6 @@ test('install --agent codex puts every file where Codex reads it and records the
   assert.deepEqual(entry.blocks.map(b => b.file).sort(), [path.join(s.home, '.codex', 'AGENTS.md'), path.join(s.home, '.codex', 'hooks.json')].sort())
 })
 
-test('install runs the pinned npx skills for both sources with the lists devflow runs, without pstack\'s tdd and teach', () => {
-  const s = sandbox({ name: 'devflow-install' })
-  assert.equal(s.run('install', '--agent', 'codex').status, 0)
-  const [matt, pstack] = s.calls()
-  const split = (args, source) => {
-    const head = args.slice(0, args.indexOf('-s'))
-    const tail = args.slice(args.indexOf('-s') + 1)
-    assert.deepEqual(head, ['skills@1.7.4', 'add', source, '-a', 'codex'])
-    assert.deepEqual(tail.slice(-2), ['-y', '-g'])
-    return tail.slice(0, -2)
-  }
-  const mattNames = split(matt, 'mattpocock/skills')
-  const pstackNames = split(pstack, 'backnotprop/pstack')
-  assert.equal(mattNames.length, 20)
-  assert.equal(pstackNames.length, 43)
-  assert.deepEqual([...mattNames].sort(), [...listed('devflow-matt')].sort())
-  assert.deepEqual([...pstackNames].sort(), [...listed('devflow-pstack')].sort())
-  assert.ok(mattNames.includes('tdd'))
-  assert.ok(!pstackNames.includes('tdd') && !pstackNames.includes('teach'))
-  assert.equal(s.calls().length, 2)
-})
-
 test('uninstall puts the home folder back as it was, keeping what devflow did not write', () => {
   const s = sandbox({ name: 'devflow-install' })
   write(path.join(s.home, '.codex', 'AGENTS.md'), '# My rules\n\nBe brief.\n')
@@ -113,10 +91,7 @@ test('uninstall puts the home folder back as it was, keeping what devflow did no
   const r = s.run('uninstall', '--agent', 'codex')
   assert.equal(r.status, 0, r.stderr)
   assert.deepEqual(tree(s.home), before)
-  const [addMatt, addPstack, removeMatt, removePstack] = s.calls()
-  const names = args => args.slice(args.indexOf('-s') + 1, args.indexOf('-y'))
-  assert.deepEqual(removeMatt, ['skills@1.7.4', 'remove', ...names(addMatt), '-g', '-y'])
-  assert.deepEqual(removePstack, ['skills@1.7.4', 'remove', ...names(addPstack), '-g', '-y'])
+  assert.deepEqual(s.calls(), [])
 })
 
 test('uninstall from a fresh home leaves the home empty', () => {
@@ -133,7 +108,7 @@ test('installing again replaces the earlier install instead of doubling it', () 
   assert.equal(s.run('install', '--agent', 'codex').status, 0)
   assert.deepEqual(tree(s.home), first)
   assert.equal(readJson(s.userRecord).length, 1)
-  assert.equal(s.calls().length, 4)
+  assert.deepEqual(s.calls(), [])
   assert.equal(readJson(path.join(s.home, '.codex', 'hooks.json')).hooks.PreToolUse.length, 1)
   assert.equal(fs.readFileSync(path.join(s.home, '.codex', 'AGENTS.md'), 'utf8').split('devflow:begin').length, 2)
 })
@@ -157,13 +132,4 @@ test('bad arguments get a usage line and change nothing', () => {
   assert.equal(s.run('install', '--agent', 'codex', '--bogus').status, 2)
   assert.deepEqual(fs.readdirSync(s.home), [])
   assert.deepEqual(s.calls(), [])
-})
-
-test('a failing npx skills stops the install before devflow writes anything', () => {
-  const s = sandbox({ name: 'devflow-install' })
-  s.env.STUB_EXIT = '3'
-  const r = s.run('install', '--agent', 'codex')
-  assert.notEqual(r.status, 0)
-  assert.match(r.stderr, /npx skills/)
-  assert.deepEqual(fs.readdirSync(s.home), [])
 })

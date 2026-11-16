@@ -59,9 +59,7 @@ test('install --agent opencode puts every file where OpenCode V2 reads it, regis
   assert.ok(entry.files.includes(path.join(plugin, 'package.json')))
   assert.deepEqual(entry.blocks.map(b => b.file).sort(), [path.join(config(s.home), 'AGENTS.md'), path.join(config(s.home), 'opencode.jsonc')].sort())
 
-  const [matt, pstack] = s.calls()
-  assert.deepEqual(matt.slice(0, 5), ['skills@1.7.4', 'add', 'mattpocock/skills', '-a', 'opencode'])
-  assert.deepEqual(pstack.slice(0, 5), ['skills@1.7.4', 'add', 'backnotprop/pstack', '-a', 'opencode'])
+  assert.deepEqual(s.calls(), [])
 })
 
 test('install merges into an existing opencode.json and uninstall removes only its own entry', () => {
@@ -82,7 +80,7 @@ test('install merges into an existing opencode.json and uninstall removes only i
   assert.equal(r.status, 0, r.stderr)
   assert.deepEqual(tree(s.home), before)
   assert.deepEqual(readJson(path.join(config(s.home), 'opencode.json')), mine)
-  assert.equal(s.calls().length, 4)
+  assert.deepEqual(s.calls(), [])
 })
 
 test('install writes into opencode.jsonc when that is the config that exists', () => {

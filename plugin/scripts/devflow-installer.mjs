@@ -4,7 +4,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { ADAPTERS, at } from './devflow-adapters.mjs'
-import { AGENTS, PACKS, packSkills, projectRoot } from './devflow-lib.mjs'
+import { AGENTS, projectRoot } from './devflow-lib.mjs'
 
 const SKILLS_PIN = 'skills@1.7.4'
 
@@ -215,10 +215,6 @@ function runSkills (args, cwd) {
   if (r.error || r.status !== 0) throw new Error(`npx skills ${args[0]} failed${r.error ? `: ${r.error.message}` : ` (exit ${r.status})`}`)
 }
 
-function upstreamAddArgs (agent, pack, scope) {
-  return ['add', PACKS[pack].source, '-a', agent, '-s', ...packSkills(pack), '-y', ...(scope === 'user' ? ['-g'] : [])]
-}
-
 function upstreamRemoveArgs (names, scope) {
   return ['remove', ...names, ...(scope === 'user' ? ['-g'] : []), '-y']
 }
@@ -383,28 +379,9 @@ function handOffCreated (entry, rest) {
   }
 }
 
-function upstreamPaths (scope, base) {
-  const agents = path.join(base, '.agents')
-  return { dirs: [agents, path.join(agents, 'skills')], lock: scope === 'user' ? path.join(agents, '.skill-lock.json') : path.join(base, 'skills-lock.json') }
-}
-
-function missingUpstream (scope, base) {
-  const { dirs, lock } = upstreamPaths(scope, base)
-  return { dirs: dirs.filter(d => !fs.existsSync(d)), files: fs.existsSync(lock) ? [] : [lock] }
-}
-
 function mergeUpstream (a, b) {
   const both = key => [...new Set([...(a?.[key] || []), ...(b?.[key] || [])])]
   return { dirs: both('dirs'), files: both('files'), names: both('names') }
-}
-
-function addedUpstream (scope, base) {
-  const { dirs, lock } = upstreamPaths(scope, base)
-  let had = []
-  try { had = Object.keys(readJson(lock).skills) } catch {}
-  try { had.push(...fs.readdirSync(dirs[1])) } catch {}
-  const names = Object.keys(PACKS).flatMap(packSkills).filter(n => !had.includes(n))
-  return { ...missingUpstream(scope, base), names }
 }
 
 function dropUpstream ({ dirs, files }) {
@@ -414,6 +391,22 @@ function dropUpstream ({ dirs, files }) {
     if (!skills || !Object.keys(skills).length) fs.rmSync(f, { force: true })
   }
   pruneDirs(dirs)
+}
+
+// Before 1.3 devflow installed Matt Pocock's skills and pstack with npx skills and recorded which ones it added.
+// Those are removed once no install in the same scope still carries that record.
+function removeUpstream (upstream, scope, base, log) {
+  const names = upstream.names || []
+  if (names.length) {
+    try {
+      runSkills(upstreamRemoveArgs(names, scope), scope === 'project' ? base : undefined)
+    } catch (e) {
+      log(`couldn't remove the ${names.length} skills an older devflow installed (${e.message}). Remove them yourself with: npx ${SKILLS_PIN} ${upstreamRemoveArgs(names, scope).join(' ')}`)
+      return
+    }
+    log(`removed the ${names.length} skills an older devflow installed from Matt Pocock's skills and pstack; devflow now ships its own`)
+  }
+  dropUpstream(upstream)
 }
 
 function plan (name, scope) {
@@ -446,8 +439,6 @@ export function install ({ agent, scope = 'user', log = () => {} }) {
   const ctx = { adapter, skillsDir, where, pluginDir, ref, agent, scope, backstop }
   const rendered = adapter.hooks ? HOOK_FORMATS[adapter.hooks.format](adapter, ctx) : {}
   if (rendered.hooks) readHooksFile(where(adapter.hooks.file))
-  const added = addedUpstream(scope, base)
-  for (const pack of Object.keys(PACKS)) runSkills(upstreamAddArgs(agent, pack, scope), scope === 'project' ? base : undefined)
 
   const record = readRecord(scope, base)
   const prior = record.find(e => e.agent === agent && e.scope === scope)
@@ -457,9 +448,14 @@ export function install ({ agent, scope = 'user', log = () => {} }) {
     handOffCreated(prior, rest)
     writeRecord(scope, base, rest, [])
     pruneDirs(prior.dirs)
+    if (prior.upstream) {
+      const keeper = rest.find(e => e.upstream)
+      if (keeper) keeper.upstream = mergeUpstream(keeper.upstream, prior.upstream)
+      else removeUpstream(prior.upstream, scope, base, log)
+    }
   }
 
-  const entry = { agent, scope, version: packageVersion(), files: [], blocks: [], dirs: (prior?.dirs || []).filter(d => fs.existsSync(d)), upstream: mergeUpstream(prior?.upstream, added) }
+  const entry = { agent, scope, version: packageVersion(), files: [], blocks: [], dirs: (prior?.dirs || []).filter(d => fs.existsSync(d)) }
   try {
     putRuntime(entry, { pluginDir, agent, scope })
     for (const [file, text] of skillFiles(ctx)) putFile(entry, file, text)
@@ -490,21 +486,14 @@ export function uninstall ({ agent, scope = 'user', log = () => {} }) {
   const keeper = rest[0]
   if (!keeper) writeRecord(scope, base, rest, [])
   pruneDirs(entry.dirs)
+  const heir = entry.upstream && rest.find(e => e.upstream)
+  if (heir) heir.upstream = mergeUpstream(heir.upstream, entry.upstream)
   if (keeper) {
-    keeper.upstream = mergeUpstream(keeper.upstream, entry.upstream)
     keeper.dirs = [...new Set([...keeper.dirs, ...entry.dirs.filter(d => fs.existsSync(d))])]
     writeRecord(scope, base, rest, [])
   }
   log(`removed devflow's files for ${AGENTS[agent].label}`)
-  if (keeper) {
-    log('left the skills from npx skills in place: another agent installed here still uses them')
-    return entry
-  }
-  for (const pack of Object.keys(PACKS)) {
-    const names = packSkills(pack).filter(n => entry.upstream?.names?.includes(n))
-    if (names.length) runSkills(upstreamRemoveArgs(names, scope), scope === 'project' ? base : undefined)
-  }
-  if (entry.upstream) dropUpstream(entry.upstream)
+  if (entry.upstream && !heir) removeUpstream(entry.upstream, scope, base, log)
   return entry
 }
 

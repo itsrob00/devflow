@@ -1,9 +1,6 @@
-## Agent skills
+## Working in this repo
 
-### Issue tracker
-
-Issues live in this repo's GitHub Issues (itsrob00/devflow). See `docs/agents/issue-tracker.md`.
-
-### Domain docs
-
-Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+- [CONTRIBUTING.md](CONTRIBUTING.md) says how the skills are laid out and how to write one. Read it before changing anything under `plugin/skills`.
+- Decisions that last are in `docs/adr/`.
+- Issues live in this repo's GitHub Issues (itsrob00/devflow).
+- `node --test` runs the tests.
