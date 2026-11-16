@@ -266,7 +266,7 @@ function rules () {
   const s = loadSettings(root)
   const out = []
   if (s.mode) {
-    try { out.push(fs.readFileSync(path.join(PLUGIN, 'mode.md'), 'utf8').trim()) } catch {}
+    try { out.push(fs.readFileSync(path.join(PLUGIN, 'mode.md'), 'utf8').replace(/\r\n/g, '\n').trim()) } catch {}
   }
   if (s.no_comments) out.push(NO_COMMENTS)
   if (out.length) emit('SessionStart', out.join('\n\n'))

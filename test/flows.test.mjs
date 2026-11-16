@@ -115,7 +115,7 @@ test('every session gets devflow mode and the no-comments rule, each until its s
   const env = opts => ({ ...process.env, HOME: root, USERPROFILE: root, CLAUDE_CONFIG_DIR: cfg, CLAUDE_PLUGIN_OPTION_NO_COMMENTS: '', CLAUDE_PLUGIN_OPTION_MODE: '', ...opts })
   const rules = (opts = {}) => execFileSync('node', [script, 'rules'], { cwd: root, encoding: 'utf8', env: env(opts) })
   const context = (opts = {}) => JSON.parse(rules(opts)).hookSpecificOutput.additionalContext
-  const mode = fs.readFileSync(path.join(path.dirname(path.dirname(script)), 'mode.md'), 'utf8').trim()
+  const mode = fs.readFileSync(path.join(path.dirname(path.dirname(script)), 'mode.md'), 'utf8').replace(/\r\n/g, '\n').trim()
   assert.equal(JSON.parse(rules()).hookSpecificOutput.hookEventName, 'SessionStart')
   assert.equal(context(), `${mode}\n\nDon't add comments or docstrings to code you write or edit, including ones explaining the change, unless the user asks. Leave existing comments alone unless your change makes them wrong.`)
   assert.match(context({ CLAUDE_PLUGIN_OPTION_MODE: 'false' }), /^Don't add comments/)
