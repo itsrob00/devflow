@@ -27,6 +27,10 @@ Tests live at the seams named in the plan: public interfaces, never internals. I
 - **Only enough code to pass.** No speculative features.
 - **No refactoring inside the loop.** Reshaping belongs to the review that follows.
 
+## Properties
+
+When a behaviour must hold for every input, such as a round trip, an ordering or no duplicates, add a property-based test with the repo's library. With none, loop over generated cases. A few examples only show the cases you thought of.
+
 ## Mocks
 
 Mock only at a system boundary you don't own: a third-party API, the clock, the network. What a mocked external service receives is behaviour, because that service observes it. A call to an internal helper is not.

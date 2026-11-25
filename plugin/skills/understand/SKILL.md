@@ -34,7 +34,7 @@ Stop when you can say what the code was protecting, or that the history doesn't 
 
 ## 4. Answer
 
-Inside a flow, give three or four lines for the plan: how it works, where the change belongs, what could bite.
+Inside a flow, give three or four lines for the plan: how it works, where the change belongs, what could bite. When the area does one thing more than one way, name the way to follow and the ones not to copy, such as a deprecated API or a workaround.
 
 Asked directly, give a fuller explanation and drop any part that doesn't apply:
 
@@ -42,7 +42,7 @@ Asked directly, give a fuller explanation and drop any part that doesn't apply:
 - **Key ideas.** The few types or concepts the rest depends on.
 - **How it works.** The flow, step by step, naming files and functions. Add a diagram when several parts talk to each other.
 - **Where things live.** The files worth opening first.
-- **What could bite.** Surprises, hidden coupling, things that look wrong and aren't.
+- **What could bite.** Surprises, hidden coupling, things that look wrong and aren't, and code that a new change would copy but shouldn't.
 
 Keep what you read apart from what you infer. "The loader retries three times" is read. "Probably because the API is flaky" is inferred, and says so. A search that finds nothing is an answer. Never invent a caller, an API or a reason.
 

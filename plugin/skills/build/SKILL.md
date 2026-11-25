@@ -11,6 +11,8 @@ Build what the plan describes. The plan and its sketch are the contract. Testing
 
 Record every decision you take along the way in the decision list, including any deviation from the plan and why.
 
+The code around a change is what the next agent copies. Follow the way the plan or the notes on the code name, not the nearest example. Don't add a use of a deprecated API or a workaround. When the right way is missing, record it as a decision rather than adding a workaround.
+
 ## Direct, for a plan with no tickets
 
 1. **One slice at a time.** Write a failing test for the next behaviour at an agreed seam, then only the code that passes it. Don't write ahead of the tests.

@@ -28,7 +28,7 @@ For each candidate, take the first of these that fits:
 
 1. **Architecture.** One owner per piece of state, one supported way per task, the wrong import fails. Delete old ways an agent would copy.
 2. **Types or a lint.** Make the bad state impossible to write, or fail with an error that names what to use instead.
-3. **A test** of the behaviour.
+3. **A test** of the behaviour, or a step in the repo's verification skill when only the running app shows the mistake.
 4. **Written instruction,** only for judgement calls. Nothing fails when an agent skips it.
 
 A mechanical rule (a banned API, an import shape, a file location) always becomes a check. Only judgement calls go in a standards file, which the reviewer reads, not the implementer.

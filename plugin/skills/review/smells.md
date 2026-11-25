@@ -23,4 +23,5 @@ These apply even when a repo documents nothing. Each is a labelled judgement cal
 - **Leaked decision.** One representation or policy repeated across modules.
 - **Pass-through.** A layer that forwards the same arguments and adds nothing.
 - **Split ownership.** More than one module writing the same state.
+- **A second way.** The diff adds another way to do something the repo already does one way, or a new use of something deprecated or a workaround. Agents copy what they see, so this spreads.
 - **Hard to trace.** A reader can't answer "where does this come from" and "what can change it" in under a minute. Cut a layer or shrink the state.
