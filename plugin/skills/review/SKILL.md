@@ -29,6 +29,8 @@ Start two subagents with fresh context, in parallel. Each gets the diff command 
 
 Show the two reports under **Standards** and **Plan**. Don't merge or rank across them. End with one line: findings per axis and the worst in each.
 
+Under the reports, list **Rules with no check**: each broken standard that is mechanical (a banned API, an import shape, a file location) and that no lint, type or test enforces. A rule a reviewer has to catch by reading will be broken again.
+
 ## 5. Fix, inside a flow
 
 Fix gaps against the plan and breaches of documented standards without asking, then rerun the tests. Leave the smells: list them in the final report as judgement calls for the user. Outside a flow, report only.

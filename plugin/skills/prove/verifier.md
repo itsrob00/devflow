@@ -20,7 +20,7 @@ If the checkout doesn't build or start, fix that or report it exactly before wri
 
 - **Launch.** The exact command, how to tell the app is usable and not merely running, and how to stop it.
 - **Health check.** One read-only command that says whether this instance is worth driving.
-- **Drive.** The recipe with real selectors or commands. Prefer stable handles such as labels, data attributes and route paths.
+- **Drive.** The recipe with real selectors or commands. Prefer stable handles such as labels, data attributes and route paths. A drive of more than a few steps goes in a script beside the skill, so a later run repeats it with one command.
 - **Evidence.** What to capture and where it goes.
 - **Cleanup.** How to remove what a run created. Stop what you started, never by process name. Evidence survives cleanup.
 

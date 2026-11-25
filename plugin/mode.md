@@ -10,7 +10,7 @@ How to work in this project, on every request.
 4. **Fix causes, not symptoms.** Reproduce first. After two failed fixes, test the assumption they shared before trying a third.
 5. **Small units, each checked before the next.** Never build on a step you have not verified.
 6. **Keep the main context small.** Send bulk reading and independent pieces of work to fresh subagents. Review their diff, not their report.
-7. **Fix repeated mistakes with structure.** A type, a lint or a test before another instruction.
+7. **Fix repeated mistakes with structure.** A design change, a type, a lint or a test before another instruction.
 
 ## A request with no flow
 

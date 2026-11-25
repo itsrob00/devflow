@@ -18,6 +18,8 @@ Write a body a reviewer can take in at a glance. Skip preambles, keep the prose 
 
 - **Before:** <output, screenshot or failing test>
   **After:** <output, screenshot or passing test>
+- **Safe because:** <the fact, and the run that proves it, or "unproven">
+- **In the running app:** <what was driven and what it showed, or "unproven" and why>
 
 ## Decisions taken for you
 
@@ -35,7 +37,9 @@ Pick the smallest view that makes the point, from [visuals.md](visuals.md). Usua
 
 ## Evidence
 
-Show before and after. A screenshot is best for a visible change. Otherwise show a run: the exact test that failed and now passes, or the command output. Use the evidence already gathered. Don't describe a check you didn't run.
+Show before and after. A screenshot is best for a visible change. Otherwise show a run: the exact test that failed and now passes, or the command output. Add the safety fact from the check and what the running app showed. Use the evidence already gathered, pasting the real output. Don't describe a check you didn't run, and drop a line that has nothing behind it rather than fill it.
+
+A screenshot saved on disk isn't in the body until it is uploaded. Link it if it is hosted, otherwise give the user its path to drag into the pull request.
 
 ## Decisions taken for you
 
