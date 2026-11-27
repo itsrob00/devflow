@@ -2,6 +2,8 @@
 
 Steps 1 to 4 end at the one stop. Steps 5 to 9 run without waiting.
 
+Everything this flow writes for people, such as the plan, commit messages and the pull request body, follows `write`.
+
 1. **Understand.** `understand`. Keep its three or four lines for the plan.
 2. **Decide.** `decide`. When a decision needs a runnable answer, `prototype`. When it waits on docs or an API fact, `research` in the background.
 3. **Shape.** `shape`, when the change adds types or crosses a module boundary. Otherwise skip it.

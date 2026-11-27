@@ -1,6 +1,6 @@
 # devflow
 
-**A development workflow for coding agents, in two parts. A short working mode is always on, so a plain request is done carefully with no ceremony. A command runs the work as a flow that plans it, stops once for your go, then builds, checks, proves and ships it. It's a Claude Code plugin, and it also installs on Codex CLI, Cursor and OpenCode.**
+**A development workflow for coding agents, in two parts. A short baseline of rules is always on, so a plain request is done carefully with no ceremony. A command runs the work as a flow that plans it, stops once for your go, then builds, checks, proves and ships it. It's a Claude Code plugin, and it also installs on Codex CLI, Cursor and OpenCode.**
 
 ```
 /devflow:start add CSV export to the reports page
@@ -19,7 +19,7 @@ You need Claude Code, Node 18 or later, and git.
    /plugin install devflow@devflow
    ```
 
-2. **Work.** There is nothing to set up per repo. Ask for something plainly and it runs under devflow mode. Or start a flow:
+2. **Work.** There is nothing to set up per repo. Ask for something plainly and it runs under the devflow baseline. Or start a flow:
 
    ```
    /devflow:start <what you want done>
@@ -35,20 +35,20 @@ You need Claude Code, Node 18 or later, and git.
 
 | You type | What happens |
 |---|---|
-| a plain request | It is worked under **devflow mode**. No flow, no saved state, no stop. |
+| a plain request | It is worked under the **devflow baseline**. No flow, no saved state, no stop. |
 | `/devflow:start <task>` | A flow for the task. With no task it picks up unfinished work. |
 | `/devflow:continue` | Picks up unfinished work. |
 | `/devflow:learn` | Looks back over a session that went sideways and turns what went wrong into a check, a type or a test. |
 
-### devflow mode
+### devflow baseline
 
-The mode is about 400 words loaded into every session: seven rules and six steps. It is devflow's own take on pstack's `poteto-mode`, cut down to what changes how the agent works.
+The baseline is about 400 words loaded into every session: seven rules and six steps. It is devflow's own take on pstack's `poteto-mode`, cut down to what changes how the agent works.
 
 - **The rules:** decide and proceed, smallest change that solves it, prove it on the real thing, fix causes not symptoms, small units each checked before the next, keep the main context small, fix repeated mistakes with structure.
 - **The steps for a plain request:** say the goal in one line, read before writing, ask at most once, build test-first, prove it, report with evidence. It commits or pushes only when you ask.
-- **When the work is bigger** than the mode suits, it says once that `/devflow:start` would run it as a flow, and carries on unless you switch.
+- **When the work is bigger** than the baseline suits, it says once that `/devflow:start` would run it as a flow, and carries on unless you switch.
 
-The whole text is in [plugin/mode.md](plugin/mode.md). Turn it off with the devflow mode setting.
+The whole text is in [plugin/baseline.md](plugin/baseline.md). Turn it off with the devflow baseline setting.
 
 ### Flows
 
@@ -136,7 +136,7 @@ Set these in `/plugin`, under devflow, Configure options. Saying otherwise in yo
 |---|---|---|
 | Git safety hook | on | While a flow is running in the conversation, blocks `git push`, `reset --hard`, `clean -f`, `branch -D`, and commands that discard the whole working tree (`checkout .`, `restore .`, `checkout -f`, `switch --discard-changes`). The agent gives you the command to run instead. Conversations not on a flow aren't affected. |
 | No code comments | on | The agent adds no comments or docstrings to code it writes or edits, unless you ask. It leaves existing comments alone unless a change makes them wrong. |
-| devflow mode | on | Loads the mode into every session, so plain requests are worked by its rules and steps. Off: only flows carry devflow's rules. |
+| devflow baseline | on | Loads the baseline into every session, so plain requests are worked by its rules and steps. Off: only flows carry devflow's rules. |
 | Adversarial review | risky changes | When two fresh subagents try to break the change, keeping only findings a run proves: on risky changes (auth, permissions, payments, data migration or deletion, concurrency, public APIs), always, or never. |
 | Subagents at once | 3 | How many tickets of a big job are built at the same time. 1 to 10. |
 | Subagent model | auto | The model that builds a big job's tickets. `auto` uses the agent's fast model for tickets marked simple and its strong model for ones marked complex (Sonnet and Opus on Claude Code). Any model name is used for every ticket. |
@@ -147,7 +147,7 @@ Outside `/plugin`, put the same settings in a JSON file:
 - `~/.config/devflow/settings.json` for every project
 - `.devflow/settings.json` at the project's git root for one project
 
-The keys are `git_guard`, `no_comments` and `mode` (`true` or `false`), `adversarial_review` (`risky changes`, `always` or `never`), `subagent_count` (a number), `subagent_model` (`auto` or a model name) and `tracker` (`auto`, `github`, `gitlab` or `files`). For example: `{"subagent_count": 5}`.
+The keys are `git_guard`, `no_comments` and `mode` for the baseline (`true` or `false`), `adversarial_review` (`risky changes`, `always` or `never`), `subagent_count` (a number), `subagent_model` (`auto` or a model name) and `tracker` (`auto`, `github`, `gitlab` or `files`). For example: `{"subagent_count": 5}`.
 
 The project file overrides the user file, except that it can't turn the git guard off, so a cloned repo can't disarm it. In Claude Code, the `/plugin` options override both. devflow skips a missing or unreadable file and any value it doesn't know. To see the result, ask the agent to run `devflow settings`. It also shows the fast and strong model `auto` uses on your agent.
 
@@ -159,7 +159,7 @@ devflow installs five hooks. All are small local scripts.
 |---|---|
 | Before each shell command | The git safety hook, only in a conversation that is on a flow. |
 | Session start | One line when the project has unfinished flows. |
-| Session start, and after compaction | Loads devflow mode and the no-comments rule, each if its setting is on. |
+| Session start, and after compaction | Loads the devflow baseline and the no-comments rule, each if its setting is on. |
 | After each shell command | Links the conversation to a flow when the command was a `devflow flow` command. |
 | Each message you send | Reminds the agent which flow and step the conversation is on. |
 
@@ -167,7 +167,7 @@ devflow installs five hooks. All are small local scripts.
 
 - devflow no longer installs Matt Pocock's skills or pstack. In Claude Code, remove the two old plugins: `/plugin uninstall devflow-matt@devflow` and `/plugin uninstall devflow-pstack@devflow`. On other agents, `update` removes the skills the old install added.
 - `/devflow:setup` and `/devflow:wrap` are gone. Nothing needs setting up, and `/devflow:learn` is the session review. `/devflow:start` and `/devflow:continue` stay.
-- Small changes no longer run pstack's `poteto-mode`. devflow mode is always on instead, with or without a flow.
+- Small changes no longer run pstack's `poteto-mode`. The devflow baseline is always on instead, with or without a flow.
 - The `small_changes`, `grilling` and `after_session` settings are gone and are ignored if still set.
 - Flows saved by 1.2 still list, with their old step names.
 
@@ -185,7 +185,7 @@ npx github:itsrob00/devflow install --agent <codex|cursor|opencode>
 
 This puts devflow in your home folder. Add `--project` to put it in the current repo instead, under the git root, so a team can share one setup. The install:
 - copies devflow's skills into the agent's skills folder, each named `devflow-<skill>` the way that agent expects
-- writes the agent's hooks for the git guard, devflow mode and the flow reminders, plus the written fallbacks described below
+- writes the agent's hooks for the git guard, the devflow baseline and the flow reminders, plus the written fallbacks described below
 - records every file it wrote in `~/.config/devflow/installs.json` (`.devflow/installs.json` with `--project`)
 
 When it finishes, the install prints any step the agent still needs from you, such as trusting Codex's hooks.
@@ -202,7 +202,7 @@ npx github:itsrob00/devflow update [--agent <name>] [--project]
 npx github:itsrob00/devflow uninstall --agent <name> [--project]
 ```
 
-Run the skills the way your agent runs skills, with the task after them or in your next message. devflow mode is loaded at session start here too.
+Run the skills the way your agent runs skills, with the task after them or in your next message. The devflow baseline is loaded at session start here too.
 
 | Agent | Start | Pick up later |
 |---|---|---|
@@ -241,7 +241,7 @@ Every install writes the git guard rules into the agent's always-on instructions
 
 - **Codex CLI.** Hooks run only in trusted projects. Until you trust a project, the written rules in `AGENTS.md` are all that guard it. If you keep an `AGENTS.override.md`, Codex reads it instead of `AGENTS.md` and never sees devflow's block, so copy the block across.
 - **Cursor.** Cursor's prompt hook can't add context, so the per-message reminder comes from the always-applied rule. The guard hook fails closed: if it errors, Cursor blocks the command. Cursor doesn't promise to load a rule from your home folder, so if devflow's rule doesn't show up in Cursor's rules, install with `--project` in each repo.
-- **OpenCode.** OpenCode has no session-start hook, so the plugin's per-prompt context hook carries devflow mode and the session-start reminder.
+- **OpenCode.** OpenCode has no session-start hook, so the plugin's per-prompt context hook carries the devflow baseline and the session-start reminder.
 
 The Codex `.rules` file is a second guard that doesn't depend on hooks. It blocks the guarded git commands in every session, not only during a flow, because it can't tell whether a flow is running. When you need one of them, run it yourself in a terminal; to lift the block, uninstall devflow for Codex. It only catches simple commands: Codex checks a `bash -c` script against the rules only when the script is a plain chain of commands, so a script with variables or `$(...)` gets past it. The hook guard still checks those.
 

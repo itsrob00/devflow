@@ -1,5 +1,7 @@
 # Bug flow
 
+Everything this flow writes for people, such as the plan, commit messages and the pull request body, follows `write`.
+
 1. **Diagnose.** `diagnose`, phases 1 to 4: the loop that goes red, the minimal reproduction, and the cause proven by a run. For a regression, or code that looks deliberate, read its history as `understand` step 3 says.
 2. **Stop, only for a fix that is more than a small change.** A small fix touches one or two files and decides no behaviour. Anything larger: show the proven cause and the fix you propose, and wait for the user's go.
 3. **Fix.** Create a branch for the fix unless you are already on one that isn't the default branch, and save it with `branch=`. Then `diagnose`, phases 5 and 6: the regression test, the fix and the cleanup.

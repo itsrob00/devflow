@@ -26,7 +26,7 @@ test('install --agent codex puts every file where Codex reads it and records the
   for (const dir of ['scripts', 'hooks']) {
     for (const f of fs.readdirSync(path.join(source, dir))) assert.equal(fs.readFileSync(path.join(runtime, dir, f), 'utf8'), fs.readFileSync(path.join(source, dir, f), 'utf8'))
   }
-  for (const f of ['mode.md', 'CREDITS.md']) assert.equal(fs.readFileSync(path.join(runtime, f), 'utf8'), fs.readFileSync(path.join(source, f), 'utf8'))
+  for (const f of ['baseline.md', 'CREDITS.md']) assert.equal(fs.readFileSync(path.join(runtime, f), 'utf8'), fs.readFileSync(path.join(source, f), 'utf8'))
   for (const n of ['start', 'continue', 'learn', 'build']) {
     const text = fs.readFileSync(path.join(skills, `devflow-${n}`, 'SKILL.md'), 'utf8')
     assert.match(text, new RegExp(`^name: devflow-${n}$`, 'm'))

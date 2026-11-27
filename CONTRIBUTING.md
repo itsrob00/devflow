@@ -6,7 +6,7 @@
 
 - **One job per skill.** A skill is one short file that does one step of the work: understand, decide, plan, build and so on.
 - **Skills name no other skill.** Only the flow files say what runs and in what order. Changing a flow never means editing a skill, and changing a skill never means editing a flow.
-- **The rules are shared.** `plugin/mode.md` holds the seven rules every flow follows, and how a request with no flow is worked. It is loaded into every session, so each word there has to earn its place. A skill says how a rule applies to its step. It does not restate the rule.
+- **The rules are shared.** `plugin/baseline.md` holds the seven rules every flow follows, and how a request with no flow is worked. It is loaded into every session, so each word there has to earn its place. A skill says how a rule applies to its step. It does not restate the rule.
 - **Credit what you adapt.** When a skill takes from Matt Pocock's skills or pstack, add it to the table in `plugin/CREDITS.md`.
 
 ## Writing a skill

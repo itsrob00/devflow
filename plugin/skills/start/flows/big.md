@@ -2,6 +2,8 @@
 
 Steps 1 to 4 end at the one stop. After the go, the tickets are built by subagents on one branch and the work goes up as one pull request.
 
+Everything this flow writes for people, such as the plan, commit messages and the pull request body, follows `write`.
+
 1. **Understand.** `understand`, on its wide path. Keep its three or four lines for the plan.
 2. **Decide.** `decide`. When a decision needs a runnable answer, `prototype`. When it waits on docs or an API fact, `research` in the background.
 3. **Shape.** `shape`, for the interfaces the tickets will share.
