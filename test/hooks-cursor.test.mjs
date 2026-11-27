@@ -85,7 +85,7 @@ test('the session-start reminder and rules answer with additional_context for Cu
 
   const rules = JSON.parse((await s.feed(devflow, ['rules', '--agent', 'cursor'], start)).stdout)
   assert.deepEqual(Object.keys(rules), ['additional_context'])
-  assert.match(rules.additional_context, /^# devflow mode\n[\s\S]*\n\nDon't add comments or docstrings/)
+  assert.match(rules.additional_context, /^# devflow baseline\n[\s\S]*\n\nDon't add comments or docstrings/)
   assert.equal((await s.feed(devflow, ['rules', '--agent', 'cursor'], start, { CLAUDE_PLUGIN_OPTION_NO_COMMENTS: 'false', CLAUDE_PLUGIN_OPTION_MODE: 'false' })).stdout, '')
 })
 

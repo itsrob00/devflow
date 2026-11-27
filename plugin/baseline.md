@@ -1,4 +1,4 @@
-# devflow mode
+# devflow baseline
 
 How to work in this project, on every request.
 

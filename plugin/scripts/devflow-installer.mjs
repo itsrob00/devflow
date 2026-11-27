@@ -427,7 +427,7 @@ function putRuntime (entry, { pluginDir, agent, scope }) {
   for (const dir of ['scripts', 'hooks']) {
     for (const rel of listFiles(path.join(PLUGIN, dir))) putFile(entry, path.join(pluginDir, dir, ...rel), fs.readFileSync(path.join(PLUGIN, dir, ...rel)))
   }
-  for (const name of ['mode.md', 'CREDITS.md']) putFile(entry, path.join(pluginDir, name), fs.readFileSync(path.join(PLUGIN, name)))
+  for (const name of ['baseline.md', 'CREDITS.md']) putFile(entry, path.join(pluginDir, name), fs.readFileSync(path.join(PLUGIN, name)))
   putFile(entry, path.join(pluginDir, 'agent.json'), JSON.stringify({ agent, scope }) + '\n')
 }
 

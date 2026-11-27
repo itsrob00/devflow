@@ -1,8 +1,8 @@
 {
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "devflow",
-  "version": "1.3.1",
-  "description": "Rob's development workflow: an always-on working mode for plain requests, and flows you start by command (small change, feature, bug, big job) that stop once to show the plan, then build, prove and ship. Includes a git safety hook.",
+  "version": "1.3.2",
+  "description": "Rob's development workflow: an always-on baseline of rules for plain requests, and flows you start by command (small change, feature, bug, big job) that stop once to show the plan, then build, prove and ship. Includes a git safety hook.",
   "author": {
     "name": "Rob"
   },
@@ -29,7 +29,7 @@
     },
     "mode": {
       "type": "boolean",
-      "title": "devflow mode",
+      "title": "devflow baseline",
       "description": "How Claude works on a request you make without /devflow:start: seven rules and six steps, about 400 words loaded into every session. Off: plain requests get no devflow guidance.",
       "default": true
     },

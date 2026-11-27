@@ -11,7 +11,7 @@ If that line is empty or shows no text, the task is in the user's message: take 
 
 `devflow` means `node "${CLAUDE_PLUGIN_ROOT}/scripts/devflow.mjs"`, run from the project root.
 
-If devflow mode's seven rules aren't in context, read `${CLAUDE_PLUGIN_ROOT}/mode.md`. They apply to every step. Inside a flow, the flow's steps replace the mode's own six.
+If devflow baseline's seven rules aren't in context, read `${CLAUDE_PLUGIN_ROOT}/baseline.md`. They apply to every step. Inside a flow, the flow's steps replace the baseline's own six.
 
 ## 1. Keep going, or start
 

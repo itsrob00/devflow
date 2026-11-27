@@ -7,7 +7,7 @@
 //   devflow flow show <id>             everything a session needs to continue that flow, and nothing from the others
 //   devflow flow done <id>             mark a flow finished
 //   devflow reminder                   SessionStart hook: tells the user when there are flows to continue
-//   devflow rules                      SessionStart hook: devflow mode and the no-comments rule, when their settings are on
+//   devflow rules                      SessionStart hook: devflow baseline and the no-comments rule, when their settings are on
 //   devflow track                      PostToolUse hook: links this conversation to the flow its devflow flow commands work on
 //   devflow active                     UserPromptSubmit and SessionStart hook: reminds the agent of the linked flow on every message
 import fs from 'node:fs'
@@ -29,7 +29,7 @@ function settings () {
   const { fast, strong } = AGENTS[installedAgent].closest
   console.log(`git guard: ${s.git_guard ? 'on' : 'off'}`)
   console.log(`no code comments: ${s.no_comments ? 'on' : 'off'}`)
-  console.log(`devflow mode: ${s.mode ? 'on' : 'off'}`)
+  console.log(`devflow baseline: ${s.mode ? 'on' : 'off'}`)
   console.log(`adversarial review: ${s.adversarial_review}`)
   console.log(`subagents at once: ${s.subagent_count}`)
   console.log(`subagent model: ${s.subagent_model === 'auto' ? `auto (simple tickets: ${fast}, complex tickets: ${strong})` : s.subagent_model}`)
@@ -261,12 +261,12 @@ function reminder () {
 
 const NO_COMMENTS = "Don't add comments or docstrings to code you write or edit, including ones explaining the change, unless the user asks. Leave existing comments alone unless your change makes them wrong."
 
-// SessionStart hook, also after compaction, so the mode and the rule outlive the summary.
+// SessionStart hook, also after compaction, so the baseline and the rule outlive the summary.
 function rules () {
   const s = loadSettings(root)
   const out = []
   if (s.mode) {
-    try { out.push(fs.readFileSync(path.join(PLUGIN, 'mode.md'), 'utf8').replace(/\r\n/g, '\n').trim()) } catch {}
+    try { out.push(fs.readFileSync(path.join(PLUGIN, 'baseline.md'), 'utf8').replace(/\r\n/g, '\n').trim()) } catch {}
   }
   if (s.no_comments) out.push(NO_COMMENTS)
   if (out.length) emit('SessionStart', out.join('\n\n'))

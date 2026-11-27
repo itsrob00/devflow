@@ -15,7 +15,7 @@ const bare = home => {
 const settings = (cwd, env) => execFileSync('node', [script, 'settings'], { cwd, env, encoding: 'utf8' })
 
 const out = ({ comments = 'on', auto = 'on', review = 'risky changes', count = 3, model = 'auto (simple tickets: claude-sonnet-5-5, complex tickets: claude-opus-5-5)', tracker = 'auto (from the git remote)' } = {}) =>
-  `git guard: on\nno code comments: ${comments}\ndevflow mode: ${auto}\nadversarial review: ${review}\nsubagents at once: ${count}\nsubagent model: ${model}\nstrong model: claude-opus-5-5\ntracker: ${tracker}\n`
+  `git guard: on\nno code comments: ${comments}\ndevflow baseline: ${auto}\nadversarial review: ${review}\nsubagents at once: ${count}\nsubagent model: ${model}\nstrong model: claude-opus-5-5\ntracker: ${tracker}\n`
 
 const fresh = () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'devflow-settings-'))

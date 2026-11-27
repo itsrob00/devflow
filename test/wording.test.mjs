@@ -60,6 +60,11 @@ test('every skill a flow names exists, and only the entry points and flow files 
   }
 })
 
+test('every flow has its plan, commit messages and pull request body written to the write standard', () => {
+  const all = texts()
+  for (const flow of ['small', 'feature', 'bug', 'big']) assert.match(all[`start/flows/${flow}.md`], /commit messages and the pull request body, follows `write`/, flow)
+})
+
 test('each flow with a plan stops once for the go, and the small change has no stop', () => {
   const all = texts()
   for (const flow of ['feature', 'big']) assert.match(all[`start/flows/${flow}.md`], /wait for the user's go/, flow)

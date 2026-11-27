@@ -310,7 +310,7 @@ test('the context hook adds the standing rules the settings turn on and stays ou
     const e = ctx(id)
     await on.hooks.session.context(e)
     assert.equal(e.system.length, 1)
-    assert.match(e.system[0].text, /^# devflow mode\n[\s\S]*\n\nDon't add comments or docstrings/)
+    assert.match(e.system[0].text, /^# devflow baseline\n[\s\S]*\n\nDon't add comments or docstrings/)
   }
 })
 
